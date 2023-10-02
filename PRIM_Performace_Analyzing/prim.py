@@ -82,7 +82,7 @@ class PRIM:
             setattr(self, parameter, value)
         return self
 
-    def score(self, X, y):
+    def calculate_wracc(self, X, y):
         # Check that X and y have correct shape
         X, y = check_X_y(X, y)
         # Check is fit had been called
