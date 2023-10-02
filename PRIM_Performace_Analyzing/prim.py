@@ -155,6 +155,12 @@ class PRIM:
         # Calculate recall
         return true_positives / (true_positives + false_negatives)
 
+    def calculate_f1(self, X, y):
+        precision = self.calculate_precision(X, y)
+        recall = self.calculate_recall(X, y)
+        return 2 * (precision * recall) / (precision + recall)
+
+
 
     def _get_initial_restrictions(self, X):
         return np.vstack((np.full(X.shape[1], -np.inf), np.full(X.shape[1], np.inf)))
