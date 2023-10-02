@@ -115,6 +115,47 @@ class PRIM:
         # Calculate the accuracy score
         return correct_predictions / total_predictions
 
+    def calculate_precision(self, X, y):
+        X, y = check_X_y(X, y)
+        check_is_fitted(self)
+        box = self.box_
+
+        # Create masks for y=1 inside the box and y=0 outside the box
+        y_ones_inside_box = (y == 1) & (X[:, 0] >= box[0, 0]) & (
+                    X[:, 0] <= box[1, 0])
+        y_zeros_inside_box = (y == 0) & (X[:, 0] >= box[0, 0]) & (
+                    X[:, 0] <= box[1, 0])
+
+        # Calculate the number of true positives
+        true_positives = np.sum(y_ones_inside_box)
+
+        # Calculate the number of false positives
+        false_positives = np.sum(y_zeros_inside_box)
+
+        # Calculate precision
+        return true_positives / (true_positives + false_positives)
+
+    def calculate_recall(self, X, y):
+        X, y = check_X_y(X, y)
+        check_is_fitted(self)
+        box = self.box_
+
+        # Create masks for y=1 inside the box and y=1 outside the box
+        y_ones_inside_box = (y == 1) & (X[:, 0] >= box[0, 0]) & (
+                    X[:, 0] <= box[1, 0])
+        y_ones_outside_box = (y == 1) & (
+                    (X[:, 0] < box[0, 0]) | (X[:, 0] > box[1, 0]))
+
+        # Calculate the number of true positives
+        true_positives = np.sum(y_ones_inside_box)
+
+        # Calculate the number of false negatives
+        false_negatives = np.sum(y_ones_outside_box)
+
+        # Calculate recall
+        return true_positives / (true_positives + false_negatives)
+
+
     def _get_initial_restrictions(self, X):
         return np.vstack((np.full(X.shape[1], -np.inf), np.full(X.shape[1], np.inf)))
 
