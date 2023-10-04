@@ -99,18 +99,23 @@ class PRIM:
         X, y = check_X_y(X, y)
         check_is_fitted(self)
         box = self.box_
-        ind_in_box = np.ones(len(y), dtype=bool)
+        total_predictions = len(y)
+
+        y_is_one = (y == 1)
+        y_is_zero = (y == 0)
+
+        for i in range(0, box.shape[1]):
+            x_in_box = (X[:, i] >= box[0, i]) & (X[:, i] <= box[1, i])
+
+        for i in range(0, box.shape[1]):
+            x_outside_box = ((X[:, i] < box[0, i]) | (X[:, i] > box[1, i]))
 
         # Create masks for y=1 inside the box and y=0 outside the box
-        y_ones_inside_box = (y == 1) & (X[:, 0] >= box[0, 0]) & (
-                X[:, 0] <= box[1, 0])
-        y_zeros_outside_box = (y == 0) & (
-                (X[:, 0] < box[0, 0]) | (X[:, 0] > box[1, 0]))
+        y_ones_inside_box = y_is_one & x_in_box
+
+        y_zeros_outside_box = y_is_zero & x_outside_box
 
         correct_predictions = np.sum(y_ones_inside_box) + np.sum(y_zeros_outside_box)
-
-        # Calculate the total number of predictions
-        total_predictions = np.sum(ind_in_box) + np.sum(~ind_in_box)
 
         # Calculate the accuracy score
         return correct_predictions / total_predictions
@@ -120,11 +125,18 @@ class PRIM:
         check_is_fitted(self)
         box = self.box_
 
+        y_is_one = (y == 1)
+        y_is_zero = (y == 0)
+
+        for i in range(0, box.shape[1]):
+            x_in_box = (X[:, i] >= box[0, i]) & (X[:, i] <= box[1, i])
+
+        for i in range(0, box.shape[1]):
+            x_outside_box = ((X[:, i] < box[0, i]) | (X[:, i] > box[1, i]))
+
         # Create masks for y=1 inside the box and y=0 outside the box
-        y_ones_inside_box = (y == 1) & (X[:, 0] >= box[0, 0]) & (
-                    X[:, 0] <= box[1, 0])
-        y_zeros_inside_box = (y == 0) & (X[:, 0] >= box[0, 0]) & (
-                    X[:, 0] <= box[1, 0])
+        y_ones_inside_box = y_is_one & x_in_box
+        y_zeros_inside_box = y_is_zero & x_in_box
 
         # Calculate the number of true positives
         true_positives = np.sum(y_ones_inside_box)
@@ -140,11 +152,18 @@ class PRIM:
         check_is_fitted(self)
         box = self.box_
 
+        y_is_one = (y == 1)
+        y_is_zero = (y == 0)
+
+        for i in range(0, box.shape[1]):
+            x_in_box = (X[:, i] >= box[0, i]) & (X[:, i] <= box[1, i])
+
+        for i in range(0, box.shape[1]):
+            x_outside_box = ((X[:, i] < box[0, i]) | (X[:, i] > box[1, i]))
+
         # Create masks for y=1 inside the box and y=1 outside the box
-        y_ones_inside_box = (y == 1) & (X[:, 0] >= box[0, 0]) & (
-                    X[:, 0] <= box[1, 0])
-        y_ones_outside_box = (y == 1) & (
-                    (X[:, 0] < box[0, 0]) | (X[:, 0] > box[1, 0]))
+        y_ones_inside_box = y_is_one & x_in_box
+        y_ones_outside_box = y_is_one & x_outside_box
 
         # Calculate the number of true positives
         true_positives = np.sum(y_ones_inside_box)
