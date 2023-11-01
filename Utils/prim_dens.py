@@ -5,6 +5,7 @@ class PRIMdens:
         self.alpha = alpha
         self.boxes_ = []  # To store intermediate boxes
         self.precisions_ = []  # To store precisions of intermediate boxes
+        self.recalls_ = [] # To store recall of intermediate boxes
         self.X_ = X
         self.y_ = y
 
@@ -15,6 +16,7 @@ class PRIMdens:
         
         for iteration in range(120):
             max_precision = -np.inf
+            new_recall = -np.inf
             best_cut = None
             best_box = None
             n_in_best_box = n_points  # Initially, all points are inside the box
@@ -39,9 +41,11 @@ class PRIMdens:
 
                     # Calculate volume of the trial box
                     precision = np.count_nonzero(self.y_[in_box]) / n_in_box if n_in_box > 0 else 0
+                    recall = np.count_nonzero(self.y_[in_box]) / np.count_nonzero(self.y_) if np.count_nonzero(self.y_) > 0 else 0
 
                     if precision > max_precision:
                         max_precision = precision
+                        new_recall = recall
                         best_cut = (dim, direction)
                         best_box = trial_box
                         n_in_best_box = n_in_box  # Update the count for best box
@@ -55,6 +59,7 @@ class PRIMdens:
             box = best_box
             self.boxes_.append(box)
             self.precisions_.append(max_precision)
+            self.recalls_.append(new_recall)
             self.X_ = self.X_[ind_in_best_box]
             self.y_ = self.y_[ind_in_best_box]
 
@@ -65,3 +70,6 @@ class PRIMdens:
 
     def get_precisions(self):
         return self.precisions_
+
+    def get_recalls(self):
+        return  self.recalls_
