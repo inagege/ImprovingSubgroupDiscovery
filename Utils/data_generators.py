@@ -1,5 +1,6 @@
 import numpy as np
 
+
 # http://www.sfu.ca/~ssurjano/oakoh04.html
 def calculate_y_oakley_ohagan2004(xx):
     a1 = np.array([0.0118, 0.0456, 0.2297, 0.0393, 0.1177, 0.3865, 0.3897, 0.6061,

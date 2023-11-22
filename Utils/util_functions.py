@@ -2,14 +2,25 @@ import matplotlib.pyplot as plt
 from Utils import prim_dens
 from ema_workbench.analysis import prim as prim_emaworkbench
 import pandas as pd
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import MinMaxScaler, KBinsDiscretizer
 from sklearn.model_selection import train_test_split
 import numpy as np
-import sys
-import random
 import gzip
 
 def get_data(data_name):
+    """
+    Load a dataset based on the provided data_name.
+
+    Parameters:
+    - data_name (str): Name of the dataset to load ('Bryant', 'Rozenberg', 'Susy', or 'Higgs').
+
+    Returns:
+    - pd.DataFrame: Loaded DataFrame containing the dataset.
+
+    Raises:
+    - ValueError: If an unsupported data_name is provided.
+    """
+
     data = []
     if (data_name) == 'Bryant':
         data = pd.read_csv(
@@ -19,7 +30,7 @@ def get_data(data_name):
         data = pd.read_csv(
             '/Users/inagege/Documents/00_Uni/Bachelorarbeit/ImprovingSubgroupDiscovery/Data/Rozenberg et al 2014.csv')
 
-    if (data_name) == 'susy':
+    if (data_name) == 'Susy':
         # Path to the Susy dataset .zip file
         gz_file_path = '/Users/inagege/Documents/00_Uni/Bachelorarbeit/ImprovingSubgroupDiscovery/Data/SUSY.csv.gz'
 
@@ -32,7 +43,7 @@ def get_data(data_name):
                    'M_TR_2', 'R', 'MT2', 'S_R', 'M_Delta_R', 'dPhi_r_b', 'cos(theta_r1)']
         data = pd.DataFrame(data, index=data.index, columns=columns)
 
-    if (data_name) == 'higgs':
+    if (data_name) == 'Higgs':
         gz_file_path = '/Users/inagege/Documents/00_Uni/Bachelorarbeit/ImprovingSubgroupDiscovery/Data/HIGGS.csv.gz'
 
         # Open the Gzip-compressed CSV file
@@ -48,29 +59,19 @@ def get_data(data_name):
 
     return data
 
-
-def visualize_precision_and_recall(precision_baseline, recall_baseline, precision2, recall2, first_label, second_label):
-    # Create a scatter plot
-    plt.figure(figsize=(8, 6))
-    plt.scatter(recall_baseline, precision_baseline, c='blue', marker='o', label=first_label)
-
-    plt.scatter(recall2, precision2, c='red', marker='o', label=second_label)
-
-    plt.xlim(0, 1.1)
-    plt.ylim(0, 1.1)
-
-    # Add labels and a legend
-    plt.xlabel('Recall')
-    plt.ylabel('Precision')
-    plt.title('Precision vs. Recall')
-    plt.legend()
-
-    # Display the plot
-    plt.grid(True)
-    return plt
-
-
 def get_list_all_precisions_recalls_boxes(x, y, package):
+    """
+    Get precision, recall, and boxes for a given package.
+
+    Parameters:
+    - x (pd.DataFrame): Input features.
+    - y (pd.Series): Target variable.
+    - package (str): Name of the package to use ('prim' or 'ema_workbench').
+
+    Returns:
+    - Tuple[List[float], List[float], Any]: Tuple containing precision, recall, and boxes.
+    """
+
     if package == 'prim':
         prim_alg = prim_dens.PRIMdens(x.values, y, alpha=0.1)
         prim_alg.fit()
@@ -90,6 +91,18 @@ def get_list_all_precisions_recalls_boxes(x, y, package):
 
 
 def define_y_x_all_data(data_name, stratify_feature, drop_feature, package):
+    """
+    Define input features (x) and target variable (y) for the given dataset and package.
+
+    Parameters:
+    - data_name (str): Name of the dataset.
+    - stratify_feature (str): Name of the feature used for stratification, normally label.
+    - drop_feature (str): Name of the feature to be dropped e.g. other labels for data.
+    - package (str): Name of the package to use ('prim' or 'ema_workbench').
+
+    Returns:
+    - Tuple[pd.DataFrame, pd.Series]: Tuple containing input features (x) and target variable (y).
+    """
 
     data = get_data(data_name)
 
@@ -105,11 +118,35 @@ def define_y_x_all_data(data_name, stratify_feature, drop_feature, package):
     return x, y
 
 def flat_prec_rec(prec, rec):
+    """
+    Flatten precision and recall lists.
+
+    Parameters:
+    - prec (List[List[float]]): List of precision values.
+    - rec (List[List[float]]): List of recall values.
+
+    Returns:
+    - Tuple[List[float], List[float]]: Flattened precision and recall lists.
+    """
+
     prec = [item for sublist in prec for item in sublist]
     rec = [item for sublist in rec for item in sublist]
     return prec, rec
 
 def define_train_test_split(data_name, stratify_feature, drop_feature, test_size, package):
+    """
+    Define train and test splits for a given dataset and package.
+
+    Parameters:
+    - data_name (str): Name of the dataset.
+    - stratify_feature (str): Name of the feature used for stratification.
+    - drop_feature (str): Name of the feature to be dropped.
+    - test_size (float): Proportion of the dataset to include in the test split.
+    - package (str): Name of the package to use ('prim' or 'ema_workbench').
+
+    Returns:
+    - Tuple[pd.DataFrame, pd.Series, pd.DataFrame, pd.Series]: Tuple containing x, y, x_test, and y_test.
+    """
 
     data = get_data(data_name)
 
@@ -134,6 +171,18 @@ def define_train_test_split(data_name, stratify_feature, drop_feature, test_size
     return x, y, x_test, y_test
 
 def calculate_precision_recall_test_data_allboxes(lims, x_test, y_test):
+    """
+    Calculate precision and recall for multiple boxes on test data.
+
+    Parameters:
+    - lims (List[pd.DataFrame]): List of box limits (dataframes).
+    - x_test (pd.DataFrame): Test input features.
+    - y_test (pd.Series): Test target variable.
+
+    Returns:
+    - Tuple[List[float], List[float]]: Precision and recall lists for each box.
+    """
+
     precision_test = []
     recall_test = []
 
@@ -176,6 +225,17 @@ def calculate_precision_recall_test_data_allboxes(lims, x_test, y_test):
 
 
 def calculate_precision_test_data_onebox(lims, x_test, y_test):
+    """
+    Calculate precision for one box on test data.
+
+    Parameters:
+    - lims (pd.DataFrame): Box limits.
+    - x_test (pd.DataFrame): Test input features.
+    - y_test (pd.Series): Test target variable.
+
+    Returns:
+    - float: Precision for the given box.
+    """
     is_within_limits = True
 
     # Iterate over each row of temp_data
@@ -211,69 +271,47 @@ def calculate_precision_test_data_onebox(lims, x_test, y_test):
 
 
 def generate_data(function_string, dimension_max, numb_of_points):
-    y_test = []
+    """
+    Generate synthetic data based on a given function.
 
-    x_test = np.random.rand(numb_of_points, dimension_max)
-    x_test = pd.DataFrame(x_test)
-    for index, row in x_test.iterrows():
-        y_test.append(function_string(row))
+    Parameters:
+    - function_string (str): String representation of the function fich is used to determine label.
+    - dimension_max (int): Maximum dimensionality of the generated data.
+    - numb_of_points (int): Number of data points to generate.
 
-    min_value = np.min(y_test)
-    max_value = np.max(y_test)
-    y_test = (y_test - min_value) / (max_value - min_value)
-    y_test = np.where(y_test > 0.5, 1, 0)
+    Returns:
+    - Tuple[pd.DataFrame, np.ndarray]: Generated input features (x) and target variable (y).
+    """
 
-    return x_test, y_test
+    y = []
 
-def create_plot_generated_data(function_string, dimension_max, package):
-    pts = [50, 100, 200, 400, 800, 1600, 3200, 6400]  # number of points to experiment with
-    atrs = [5, 10, 15]  # number of dimensions to experiment with
-    res_train = np.empty((len(pts), len(atrs)))  # matrix with the results
-    res_train[:] = np.nan
-    res_test = np.empty((len(pts), len(atrs)))  # matrix with the results
-    res_test[:] = np.nan
-    k = 1
+    x = np.random.rand(numb_of_points, dimension_max)
+    x = pd.DataFrame(x)
+    for index, row in x.iterrows():
+        y.append(function_string(row))
 
-    x_test, y_test = generate_data(function_string, dimension_max, 500)
+    min_value = np.min(y)
+    max_value = np.max(y)
+    y = (y - min_value) / (max_value - min_value)
+    y = np.where(y > 0.5, 1, 0)
 
-    for n in range(len(pts)):
-        for m in range(len(atrs)):
-            prec_train = []
-            prec_test = []
-            for i in range(3):  # for each dataset size (n rows, m columns) do five experiments and average the results
-                sys.stdout.write('\r' + 'experiment' + ' ' + str(k) + '/' + str(len(pts) * len(atrs)))
-                x, y = generate_data(function_string, dimension_max, pts[n])
-
-                # Select random columns
-                selected_columns = random.sample(list(x.columns), atrs[m])
-                x = x[selected_columns]
-                x_test_temp = x_test[selected_columns]
-
-                precisions, recalls, boxes = get_list_all_precisions_recalls_boxes(x, y, package)
-                if len(precisions) <= 0:
-                    prec_train.append(0)
-                else:
-                    prec_train.append(precisions[len(precisions) - 1])
-
-                if len(boxes) <= 0:
-                    prec_test.append(0)
-                else:
-                    box = boxes[len(boxes) - 1]
-                    box = pd.DataFrame(box)
-                    prec_test.append(calculate_precision_test_data_onebox(box, x_test_temp.values, y_test))
-
-            res_train[n, m] = np.mean(prec_train)
-            res_test[n, m] = np.mean(prec_test)
-            k = k + 1
-
-    plt.imshow(res_train - res_test, cmap='hot')
-    plt.yticks(np.arange(len(pts)), pts)
-    plt.xticks(np.arange(len(atrs)), atrs)
-    plt.colorbar()
-    plt.show()
+    return x, y
 
 
 def add_precision_recall_of_each_box_to_list_each_box(prec_in, rec_in, prec_out, rec_out):
+    """
+    Add precision and recall values of each box to separate lists.
+
+    Parameters:
+    - prec_in (List[float]): List of precision values.
+    - rec_in (List[float]): List of recall values.
+    - prec_out (List[List[float]]): List to store precision values for each box.
+    - rec_out (List[List[float]]): List to store recall values for each box.
+
+    Returns:
+    - Tuple[List[List[float]], List[List[float]]]: Updated lists of precision and recall values.
+    """
+
     if len(prec_in) > len(prec_out):
         while len(prec_in) > len(prec_out):
             prec_out.append([])
