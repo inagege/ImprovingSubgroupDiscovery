@@ -3,6 +3,50 @@ from scipy.stats import zscore
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.preprocessing import KBinsDiscretizer
+import imblearn as il
+from collections import Counter
+
+
+def split_x_ones_zeros_(x, y):
+    x_zeros_temp = pd.DataFrame(columns=x.columns)
+    x_ones_temp = pd.DataFrame(columns=x.columns)
+
+    for i, row in x.iterrows():
+        if y[i] == 0:
+            x_zeros_temp = pd.concat([x_zeros_temp, pd.DataFrame(row).T])
+        else:
+            x_ones_temp = pd.concat([x_ones_temp, pd.DataFrame(row).T])
+
+    return x_zeros_temp, x_ones_temp
+
+
+def scaling_zscore(x, y):
+    """
+    Perform scaling using z-score.
+
+    Parameters:
+    - x (pd.DataFrame): Input features.
+    - y (np.ndarray): Target variable.
+
+    Returns:
+    - .
+    """
+
+    x_zeros, x_ones = split_x_ones_zeros_(x, y)
+    y_temp = []
+
+    # Calculate z-scores for each column
+    z_scores_ones = pd.DataFrame(zscore(x_ones.values))
+    z_scores_zeros = pd.DataFrame(zscore(x_zeros.values))
+
+    for i in range(z_scores_ones.shape[0]):
+        y_temp.append(1)
+
+    for i in range(z_scores_zeros.shape[0]):
+        y_temp.append(0)
+
+    return pd.concat([z_scores_ones, z_scores_zeros]), np.array(y_temp)
+
 
 def outlier_detection_z_score(x, y):
     """
@@ -16,23 +60,16 @@ def outlier_detection_z_score(x, y):
     - Tuple[pd.DataFrame, np.ndarray]: DataFrame with outliers removed and corresponding target variable.
     """
 
-    x_zeros_temp = pd.DataFrame(columns=x.columns)
-    x_ones_temp = pd.DataFrame(columns=x.columns)
-
-    for i, row in x.iterrows():
-        if y[i] == 0:
-            x_zeros_temp = pd.concat([x_zeros_temp, pd.DataFrame(row).T])
-        else:
-            x_ones_temp = pd.concat([x_ones_temp, pd.DataFrame(row).T])
+    x_zeros_temp, x_ones_temp = split_x_ones_zeros_(x, y)
 
     # Calculate z-scores for each column
     z_scores_ones = pd.DataFrame(zscore(x_ones_temp.values))
     z_scores_zeros = pd.DataFrame(zscore(x_zeros_temp.values))
     add_value = 0.25
-    threshold = 1
+    threshold = 2.5
     y_temp = []
 
-    while len(y_temp) < 10:
+    while len(y_temp) < len(x)/2:
         # Specify the z-score threshold for outlier removal
         threshold = threshold + add_value
 
@@ -41,7 +78,7 @@ def outlier_detection_z_score(x, y):
 
         for i in range(z_scores_ones.shape[0]):
             for j in range(z_scores_ones.shape[1]):
-                if abs(z_scores_ones.iloc[i, j]) > threshold:
+                if abs(z_scores_ones.iloc[i, j]) >= threshold:
                     add = False
             if add:
                 y_temp.append(1)
@@ -49,11 +86,13 @@ def outlier_detection_z_score(x, y):
 
         for i in range(z_scores_zeros.shape[0]):
             for j in range(z_scores_zeros.shape[1]):
-                if abs(z_scores_zeros.iloc[i, j]) > threshold:
+                if abs(z_scores_zeros.iloc[i, j]) >= threshold:
                     add = False
             if add:
                 y_temp.append(0)
             add = True
+
+
 
     # Identify and remove rows with outliers based on the threshold
     df_no_outliers_ones = pd.DataFrame(x_ones_temp[(abs(z_scores_ones) < threshold).all(axis=1).values])
@@ -95,3 +134,11 @@ def discretize_with_kbins(x, y):
     df_scaled = pd.DataFrame(min_max_scaler.fit_transform(x), columns=x.columns)
 
     return df_scaled, y
+
+
+def add_data_with_smote(x, y):
+    sampling_strategy = {0: 1200, 1: 1200}
+    oversample = il.over_sampling.SMOTE(sampling_strategy=sampling_strategy, k_neighbors=2)
+    x, y = oversample.fit_resample(x, y)
+
+    return x, y

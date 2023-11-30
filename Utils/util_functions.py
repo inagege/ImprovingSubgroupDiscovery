@@ -1,4 +1,5 @@
-import matplotlib.pyplot as plt
+import statistics
+
 from Utils import prim_dens
 from ema_workbench.analysis import prim as prim_emaworkbench
 import pandas as pd
@@ -6,6 +7,10 @@ from sklearn.preprocessing import MinMaxScaler, KBinsDiscretizer
 from sklearn.model_selection import train_test_split
 import numpy as np
 import gzip
+import sys
+from Utils.data_generators import *
+from Utils.util_data_preprocessing import *
+
 
 def get_data(data_name):
     """
@@ -59,7 +64,8 @@ def get_data(data_name):
 
     return data
 
-def get_list_all_precisions_recalls_boxes(x, y, package):
+
+def get_list_all_precisions_recalls_boxes(x, y, package, quality_function):
     """
     Get precision, recall, and boxes for a given package.
 
@@ -73,7 +79,7 @@ def get_list_all_precisions_recalls_boxes(x, y, package):
     """
 
     if package == 'prim':
-        prim_alg = prim_dens.PRIMdens(x.values, y, alpha=0.1)
+        prim_alg = prim_dens.PRIMdens(x.values, y, alpha=0.1, quality_measurement=quality_function)
         prim_alg.fit()
         return prim_alg.get_precisions(), prim_alg.get_recalls(), prim_alg.get_boxes()
     if package == "ema_workbench":
@@ -117,6 +123,7 @@ def define_y_x_all_data(data_name, stratify_feature, drop_feature, package):
 
     return x, y
 
+
 def flat_prec_rec(prec, rec):
     """
     Flatten precision and recall lists.
@@ -132,6 +139,7 @@ def flat_prec_rec(prec, rec):
     prec = [item for sublist in prec for item in sublist]
     rec = [item for sublist in rec for item in sublist]
     return prec, rec
+
 
 def define_train_test_split(data_name, stratify_feature, drop_feature, test_size, package):
     """
@@ -169,6 +177,7 @@ def define_train_test_split(data_name, stratify_feature, drop_feature, test_size
     x_test = pd.DataFrame(sample_test.drop(columns=drop_feature))
 
     return x, y, x_test, y_test
+
 
 def calculate_precision_recall_test_data_allboxes(lims, x_test, y_test):
     """
@@ -285,6 +294,7 @@ def generate_data(function_string, dimension_max, numb_of_points):
 
     y = []
 
+    np.random.seed(42)
     x = np.random.rand(numb_of_points, dimension_max)
     x = pd.DataFrame(x)
     for index, row in x.iterrows():
@@ -293,6 +303,10 @@ def generate_data(function_string, dimension_max, numb_of_points):
     min_value = np.min(y)
     max_value = np.max(y)
     y = (y - min_value) / (max_value - min_value)
+
+    if function_string.__name__ == 'calculate_y_sobol_levitan1999':
+        y = y + 0.42
+
     y = np.where(y > 0.5, 1, 0)
 
     return x, y
@@ -322,3 +336,41 @@ def add_precision_recall_of_each_box_to_list_each_box(prec_in, rec_in, prec_out,
         rec_out[index].append(element)
 
     return prec_out, rec_out
+
+
+def get_precision_and_recall_train_test(number_of_repeats, function_string, package, preprocessing_string,
+                                        dimension_max, quality_function='precision'):
+
+    prec_train = []
+    rec_train = []
+
+    prec_test = []
+    rec_test = []
+
+    x_test, y_test = generate_data(function_string, dimension_max, 5000)
+
+    for i in range(number_of_repeats):
+        sys.stdout.write('\r' + 'experiment' + ' ' + str(i + 1) + '/' + str(number_of_repeats))
+
+        x, y = generate_data(function_string, dimension_max, 200)
+
+        if preprocessing_string is not None:
+            for item in preprocessing_string:
+                x, y = item(x, y)
+
+        precisions, recalls, boxes = get_list_all_precisions_recalls_boxes(x, y, package, quality_function)
+
+        prec_train, rec_train = add_precision_recall_of_each_box_to_list_each_box(precisions, recalls, prec_train,
+                                                                                  rec_train)
+
+        prec_test_temp, rec_test_temp = calculate_precision_recall_test_data_allboxes(boxes, x_test, y_test)
+
+        prec_test, rec_test = add_precision_recall_of_each_box_to_list_each_box(prec_test_temp, rec_test_temp,
+                                                                                prec_test, rec_test)
+
+    prec_test = [statistics.mean(l) for l in prec_test]
+    prec_train = [statistics.mean(l) for l in prec_train]
+    rec_test = [statistics.mean(l) for l in rec_test]
+    rec_train = [statistics.mean(l) for l in rec_train]
+
+    return prec_test, prec_train, rec_test, rec_train

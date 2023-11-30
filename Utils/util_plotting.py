@@ -1,8 +1,11 @@
 from Utils.util_functions import *
 import sys
 import random
+from matplotlib import pyplot as plt
 
-def create_plot_generated_data(function_string, dimension_max, package, preprocessing_string):
+
+def create_heatmap_generated_data_precision(function_string, dimension_max, package, preprocessing_string,
+                                            number_of_repeats):
     """
     Create a plot comparing precision results for different dataset sizes and dimensions.
 
@@ -11,13 +14,18 @@ def create_plot_generated_data(function_string, dimension_max, package, preproce
     - dimension_max (int): Maximum dimensionality of the generated data.
     - package (str): Name of the package to use ('prim' or 'ema_workbench').
     - preprocessing_string (List[Callable]): List of preprocessing functions.
+    - number_of_repeats (int): How many times the experiment will be run with different generated data
 
     Returns:
     - None: Displays a heatmap plot and the precisions of the boxes.
     """
 
-    pts = [50, 100, 200, 400, 800, 1600, 3200, 6400]  # number of points to experiment with
-    atrs = [5, 10, 15]  # number of dimensions to experiment with
+    pts = [50, 100, 200, 400, 800]  # number of points to experiment with
+    atrs = []  # number of dimensions to experiment with
+
+    for i in range(int(dimension_max / 5)):
+        atrs.append(5 * (i + 1))
+
     res_train = np.empty((len(pts), len(atrs)))  # matrix with the results
     res_train[:] = np.nan
     res_test = np.empty((len(pts), len(atrs)))  # matrix with the results
@@ -30,8 +38,9 @@ def create_plot_generated_data(function_string, dimension_max, package, preproce
         for m in range(len(atrs)):
             prec_train = []
             prec_test = []
-            for i in range(30):  # for each dataset size (n rows, m columns) do five experiments and average the results
-                sys.stdout.write('\r' + 'experiment' + ' ' + str(k) + '/' + str(len(pts) * len(atrs) * 30))
+            for i in range(number_of_repeats):
+                sys.stdout.write('\r' + 'experiment' + ' ' + str(k) + '/' + str(len(pts) * len(atrs)
+                                                                                * number_of_repeats))
                 x, y = generate_data(function_string, dimension_max, pts[n])
 
                 # Select random columns
@@ -43,7 +52,7 @@ def create_plot_generated_data(function_string, dimension_max, package, preproce
 
                 x_test_temp = x_test[selected_columns]
 
-                precisions, recalls, boxes = get_list_all_precisions_recalls_boxes(x, y, package)
+                precisions, recalls, boxes = get_list_all_precisions_recalls_boxes(x, y, package, 'precision')
                 if len(precisions) <= 0:
                     prec_train.append(0)
                 else:
