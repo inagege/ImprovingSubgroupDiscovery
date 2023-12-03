@@ -1,11 +1,13 @@
+import numpy as np
+
 from Utils.util_functions import *
 import sys
 import random
 from matplotlib import pyplot as plt
 
 
-def create_heatmap_generated_data_precision(function_string, dimension_max, package, preprocessing_string,
-                                            number_of_repeats):
+def create_heatmap_best_box_generated_data_precision(function_string, dimension_max, package, preprocessing_string,
+                                                     number_of_repeats):
     """
     Create a plot comparing precision results for different dataset sizes and dimensions.
 
@@ -32,7 +34,7 @@ def create_heatmap_generated_data_precision(function_string, dimension_max, pack
     res_test[:] = np.nan
     k = 1
 
-    x_test, y_test = generate_data(function_string, dimension_max, 2000)
+    x_test, y_test = generate_data(function_string, dimension_max, 2000, 'test')
 
     for n in range(len(pts)):
         for m in range(len(atrs)):
@@ -41,7 +43,7 @@ def create_heatmap_generated_data_precision(function_string, dimension_max, pack
             for i in range(number_of_repeats):
                 sys.stdout.write('\r' + 'experiment' + ' ' + str(k) + '/' + str(len(pts) * len(atrs)
                                                                                 * number_of_repeats))
-                x, y = generate_data(function_string, dimension_max, pts[n])
+                x, y = generate_data(function_string, dimension_max, pts[n], 'train')
 
                 # Select random columns
                 selected_columns = random.sample(list(x.columns), atrs[m])
@@ -52,6 +54,7 @@ def create_heatmap_generated_data_precision(function_string, dimension_max, pack
 
                 x_test_temp = x_test[selected_columns]
 
+                # hier rein für PRIM
                 precisions, recalls, boxes = get_list_all_precisions_recalls_boxes(x, y, package, 'precision')
                 if len(precisions) <= 0:
                     prec_train.append(0)
@@ -110,6 +113,43 @@ def visualize_precision_and_recall(precision_baseline, recall_baseline, precisio
     plt.xlabel('Recall')
     plt.ylabel('Precision')
     plt.title('Precision vs. Recall')
+    plt.legend()
+
+    # Display the plot
+    plt.grid(True)
+    return plt
+
+
+def visualize_precision_all_boxes(number_of_repeats, package, dimension_max,
+                                  preprocessing_string, data_generator):
+
+    prec_test, prec_train, rec_test, rec_train = get_precision_and_recall_train_test(number_of_repeats,
+                                                                                     data_generator,
+                                                                                     package, preprocessing_string,
+                                                                                     dimension_max)
+
+    while len(prec_test) != len(prec_train):
+        if len(prec_train) > len(prec_test):
+            prec_test.append(0)
+        else:
+            prec_train.append(0)
+
+    diff = np.array(prec_train) - np.array(prec_test)
+
+    plt.figure(figsize=(8, 6))
+    plt.scatter(range(len(prec_train)), prec_train, c='blue', marker='o', label='Precision Baseline')
+
+    plt.scatter(range(len(prec_test)), prec_test, c='red', marker='o', label='Precision modified')
+
+    plt.scatter(range(len(diff)), diff, c='yellow', marker='o', label='Gap')
+
+    plt.xlim(0, len(diff) + 0.1)
+    plt.ylim(0, 1.1)
+
+    # Add labels and a legend
+    plt.xlabel('Number of Box')
+    plt.ylabel('Precision')
+    plt.title('Gap Precision all Boxes')
     plt.legend()
 
     # Display the plot

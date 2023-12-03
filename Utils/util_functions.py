@@ -211,14 +211,7 @@ def calculate_precision_recall_test_data_allboxes(lims, x_test, y_test):
             for a, (column, value) in enumerate(row.iteritems()):
                 is_within_limits = (box.iloc[0, a] <= value <= box.iloc[1, a]) & is_within_limits
 
-            if is_within_limits & (y_test[row_index] == 1):
-                tp = tp + 1
-            if is_within_limits & (y_test[row_index] == 0):
-                fp = fp + 1
-            if (is_within_limits == False) & (y_test[row_index] == 0):
-                tn = tn + 1
-            if (is_within_limits == False) & (y_test[row_index] == 1):
-                fn = fn + 1
+            tp, fp, tn, fn = calculate_tp_fp_tn_fn(y_test, row_index, is_within_limits, tp, fp, tn, fn)
 
         precision = recall = 0  # Default values
 
@@ -263,14 +256,7 @@ def calculate_precision_test_data_onebox(lims, x_test, y_test):
             is_within_limits = (lims.iloc[0, col_index] <= element <= lims.iloc[
                 1, col_index]) and is_within_limits  # Calculate column index
 
-        if is_within_limits & (y_test[row_index] == 1):
-            tp = tp + 1
-        if is_within_limits & (y_test[row_index] == 0):
-            fp = fp + 1
-        if (is_within_limits == False) & (y_test[row_index] == 0):
-            tn = tn + 1
-        if (is_within_limits == False) & (y_test[row_index] == 1):
-            fn = fn + 1
+        tp, fp, tn, fn = calculate_tp_fp_tn_fn(y_test, row_index, is_within_limits, tp, fp, tn, fn)
         is_within_limits = True
 
     if (tp == 0):
@@ -279,7 +265,7 @@ def calculate_precision_test_data_onebox(lims, x_test, y_test):
         return tp / (tp + fp)
 
 
-def generate_data(function_string, dimension_max, numb_of_points):
+def generate_data(function_string, dimension_max, numb_of_points, train_or_test):
     """
     Generate synthetic data based on a given function.
 
@@ -294,7 +280,9 @@ def generate_data(function_string, dimension_max, numb_of_points):
 
     y = []
 
-    np.random.seed(42)
+    if train_or_test == 'test':
+        np.random.seed(42)
+
     x = np.random.rand(numb_of_points, dimension_max)
     x = pd.DataFrame(x)
     for index, row in x.iterrows():
@@ -303,11 +291,18 @@ def generate_data(function_string, dimension_max, numb_of_points):
     min_value = np.min(y)
     max_value = np.max(y)
     y = (y - min_value) / (max_value - min_value)
+    threshold = 0.5
 
     if function_string.__name__ == 'calculate_y_sobol_levitan1999':
-        y = y + 0.42
+        threshold = 0.05
 
-    y = np.where(y > 0.5, 1, 0)
+    if function_string.__name__ == 'calculate_y_oakley_ohagan2004':
+        threshold = 0.6
+
+    if function_string.__name__ == 'calculate_y_moon2010':
+        threshold = 0.6
+
+    y = np.where(y > threshold, 1, 0)
 
     return x, y
 
@@ -340,19 +335,18 @@ def add_precision_recall_of_each_box_to_list_each_box(prec_in, rec_in, prec_out,
 
 def get_precision_and_recall_train_test(number_of_repeats, function_string, package, preprocessing_string,
                                         dimension_max, quality_function='precision'):
-
     prec_train = []
     rec_train = []
 
     prec_test = []
     rec_test = []
 
-    x_test, y_test = generate_data(function_string, dimension_max, 5000)
+    x_test, y_test = generate_data(function_string, dimension_max, 5000, 'test')
 
     for i in range(number_of_repeats):
         sys.stdout.write('\r' + 'experiment' + ' ' + str(i + 1) + '/' + str(number_of_repeats))
 
-        x, y = generate_data(function_string, dimension_max, 200)
+        x, y = generate_data(function_string, dimension_max, 200, 'train')
 
         if preprocessing_string is not None:
             for item in preprocessing_string:
@@ -374,3 +368,16 @@ def get_precision_and_recall_train_test(number_of_repeats, function_string, pack
     rec_train = [statistics.mean(l) for l in rec_train]
 
     return prec_test, prec_train, rec_test, rec_train
+
+
+def calculate_tp_fp_tn_fn(y_test, row_index, is_within_limits, tp, fp, tn, fn):
+    if is_within_limits & (y_test[row_index] == 1):
+        tp = tp + 1
+    if is_within_limits & (y_test[row_index] == 0):
+        fp = fp + 1
+    if (is_within_limits is False) & (y_test[row_index] == 0):
+        tn = tn + 1
+    if (is_within_limits is False) & (y_test[row_index] == 1):
+        fn = fn + 1
+
+    return tp, fp, tn, fn

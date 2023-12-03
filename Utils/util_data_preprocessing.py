@@ -5,6 +5,7 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.preprocessing import KBinsDiscretizer
 import imblearn as il
 from collections import Counter
+import math
 
 
 def split_x_ones_zeros_(x, y):
@@ -69,7 +70,7 @@ def outlier_detection_z_score(x, y):
     threshold = 2.5
     y_temp = []
 
-    while len(y_temp) < len(x)/2:
+    while len(y_temp) < len(x) / 2:
         # Specify the z-score threshold for outlier removal
         threshold = threshold + add_value
 
@@ -91,8 +92,6 @@ def outlier_detection_z_score(x, y):
             if add:
                 y_temp.append(0)
             add = True
-
-
 
     # Identify and remove rows with outliers based on the threshold
     df_no_outliers_ones = pd.DataFrame(x_ones_temp[(abs(z_scores_ones) < threshold).all(axis=1).values])
@@ -137,7 +136,14 @@ def discretize_with_kbins(x, y):
 
 
 def add_data_with_smote(x, y):
-    sampling_strategy = {0: 1200, 1: 1200}
+    counter = Counter(y)
+    labeled_zero = counter[0]
+    labeled_one = counter[1]
+
+    labeled_zero = math.ceil(3000 * labeled_zero / len(y))
+    labeled_one = math.ceil(3000 * labeled_one / len(y))
+
+    sampling_strategy = {0: labeled_zero, 1: labeled_one}
     oversample = il.over_sampling.SMOTE(sampling_strategy=sampling_strategy, k_neighbors=2)
     x, y = oversample.fit_resample(x, y)
 
