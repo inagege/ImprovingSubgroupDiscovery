@@ -1,11 +1,13 @@
 import pandas as pd
 from scipy.stats import zscore
 import numpy as np
+from sklearn.metrics import accuracy_score
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.preprocessing import KBinsDiscretizer
 import imblearn as il
 from collections import Counter
 import math
+from sklearn.ensemble import RandomForestClassifier
 
 
 def split_x_ones_zeros_(x, y):
@@ -148,3 +150,32 @@ def add_data_with_smote(x, y):
     x, y = oversample.fit_resample(x, y)
 
     return x, y
+
+
+def add_data_with_smote_dtc(x, y):
+    # Create a Random Forest classifier
+    rf_classifier = RandomForestClassifier(n_estimators=100, random_state=42, class_weight={0: 1, 1: 3})
+    # Train the model on the training data
+    rf_classifier.fit(x, y)
+
+    x, y = add_data_with_smote(x, y)
+
+    y = rf_classifier.predict(x)
+
+    return x, y
+
+
+def add_data_with_dtc(x, y):
+    rf_classifier = RandomForestClassifier(n_estimators=100, random_state=42, class_weight={0: 1, 1: 3})
+    # Train the model on the training data
+    rf_classifier.fit(x, y)
+
+    x_new = np.random.rand(3000, x.shape[1])
+    x_new = pd.DataFrame(x_new)
+    x = pd.concat([x, x_new], axis=0)
+    x = pd.DataFrame(x.values)
+
+    y = rf_classifier.predict(x)
+
+    return x, y
+

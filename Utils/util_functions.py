@@ -4,12 +4,13 @@ from Utils import prim_dens
 from ema_workbench.analysis import prim as prim_emaworkbench
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler, KBinsDiscretizer
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, KFold
 import numpy as np
 import gzip
 import sys
 from Utils.data_generators import *
 from Utils.util_data_preprocessing import *
+import random
 
 
 def get_data(data_name):
@@ -46,7 +47,7 @@ def get_data(data_name):
         columns = ['label', 'lepton  1 pT', 'lepton  1 eta', 'lepton  1 phi', 'lepton  2 pT', 'lepton  2 eta',
                    'lepton  2 phi', 'missing energy magnitude', 'missing energy phi', 'MET_rel', 'axial MET', 'M_R',
                    'M_TR_2', 'R', 'MT2', 'S_R', 'M_Delta_R', 'dPhi_r_b', 'cos(theta_r1)']
-        data = pd.DataFrame(data, index=data.index, columns=columns)
+        data = pd.DataFrame(data.values, index=data.index, columns=columns)
 
     if (data_name) == 'Higgs':
         gz_file_path = '/Users/inagege/Documents/00_Uni/Bachelorarbeit/ImprovingSubgroupDiscovery/Data/HIGGS.csv.gz'
@@ -60,9 +61,15 @@ def get_data(data_name):
                    'missing energy phi', 'jet 1 pt', 'jet 1 eta', 'jet 1 phi', 'jet 1 b-tag', 'jet 2 pt', 'jet 2 eta',
                    'jet 2 phi', 'jet 2 b-tag', 'jet 3 pt', 'jet 3 eta', 'jet 3 phi', 'jet 3 b-tag', 'jet 4 pt',
                    'jet 4 eta', 'jet 4 phi', 'jet 4 b-tag', 'm_jj', 'm_jjj', 'm_lv', 'm_jlv', 'm_bb', 'm_wbb', 'm_wwbb']
-        data = pd.DataFrame(data, index=data.index, columns=columns)
+        data = pd.DataFrame(data.values, index=data.index, columns=columns)
 
     return data
+
+def Higgs():
+    return None
+
+def Susy():
+    return None
 
 
 def get_list_all_precisions_recalls_boxes(x, y, package, quality_function):
@@ -96,7 +103,7 @@ def get_list_all_precisions_recalls_boxes(x, y, package, quality_function):
         return precision, recall, boxes.box_lims
 
 
-def define_y_x_all_data(data_name, stratify_feature, drop_feature, package):
+def define_y_x_all_data(data, stratify_feature, drop_feature, package):
     """
     Define input features (x) and target variable (y) for the given dataset and package.
 
@@ -110,8 +117,6 @@ def define_y_x_all_data(data_name, stratify_feature, drop_feature, package):
     - Tuple[pd.DataFrame, pd.Series]: Tuple containing input features (x) and target variable (y).
     """
 
-    data = get_data(data_name)
-
     if package == 'prim':
         scaler = MinMaxScaler()
         data1 = data
@@ -121,7 +126,7 @@ def define_y_x_all_data(data_name, stratify_feature, drop_feature, package):
     y = data[stratify_feature]
     x = pd.DataFrame(data.drop(columns=drop_feature))
 
-    return x, y
+    return pd.DataFrame(x.values), y
 
 
 def flat_prec_rec(prec, rec):
@@ -176,7 +181,7 @@ def define_train_test_split(data_name, stratify_feature, drop_feature, test_size
     y_test = sample_test[stratify_feature]
     x_test = pd.DataFrame(sample_test.drop(columns=drop_feature))
 
-    return x, y, x_test, y_test
+    return pd.DataFrame(x.values), y, x_test, y_test
 
 
 def calculate_precision_recall_test_data_allboxes(lims, x_test, y_test):
@@ -204,8 +209,9 @@ def calculate_precision_recall_test_data_allboxes(lims, x_test, y_test):
         fn = 0
         box = lims[j]
         box = pd.DataFrame(box)
+        x_test_temp = pd.DataFrame(x_test.values)
         # Iterate over each row of temp_data
-        for row_index, row in x_test.iterrows():
+        for row_index, row in x_test_temp.iterrows():
             is_within_limits = True
             # Check if entry lies within the specified limits
             for a, (column, value) in enumerate(row.iteritems()):
@@ -265,7 +271,7 @@ def calculate_precision_test_data_onebox(lims, x_test, y_test):
         return tp / (tp + fp)
 
 
-def generate_data(function_string, dimension_max, numb_of_points, train_or_test):
+def generate_data(function_string, dimension_max, numb_of_points, train_or_test, package, data=None):
     """
     Generate synthetic data based on a given function.
 
@@ -278,33 +284,43 @@ def generate_data(function_string, dimension_max, numb_of_points, train_or_test)
     - Tuple[pd.DataFrame, np.ndarray]: Generated input features (x) and target variable (y).
     """
 
-    y = []
+    if 'calculate' in function_string.__name__:
+        y = []
 
-    if train_or_test == 'test':
-        np.random.seed(42)
+        if train_or_test == 'test':
+            np.random.seed(42)
 
-    x = np.random.rand(numb_of_points, dimension_max)
-    x = pd.DataFrame(x)
-    for index, row in x.iterrows():
-        y.append(function_string(row))
-
-    min_value = np.min(y)
-    max_value = np.max(y)
-    y = (y - min_value) / (max_value - min_value)
-    threshold = 0.5
-
-    if function_string.__name__ == 'calculate_y_sobol_levitan1999':
-        threshold = 0.05
-
-    if function_string.__name__ == 'calculate_y_oakley_ohagan2004':
-        threshold = 0.6
-
-    if function_string.__name__ == 'calculate_y_moon2010':
-        threshold = 0.6
-
-    y = np.where(y > threshold, 1, 0)
+        x = np.random.rand(numb_of_points, dimension_max)
+        x = pd.DataFrame(x)
+        for index, row in x.iterrows():
+            y.append(function_string(row))
+    else:
+        x, y = define_y_x_all_data(data, 'label', 'label', package)
+        x, x_test, y, y_test = train_test_split(x, y, train_size=numb_of_points, stratify=y)
+        y = y.to_numpy()
 
     return x, y
+
+
+def scale_y(y, function_string):
+    if 'calculate' in function_string.__name__:
+        min_value = np.min(y)
+        max_value = np.max(y)
+        y = (y - min_value) / (max_value - min_value)
+        threshold = 0.5
+
+        if function_string.__name__ == 'calculate_y_sobol_levitan1999':
+            threshold = 0.01
+
+        if function_string.__name__ == 'calculate_y_oakley_ohagan2004':
+            threshold = 0.6
+
+        if function_string.__name__ == 'calculate_y_moon2010':
+            threshold = 0.6
+
+        y = np.where(y > threshold, 1, 0)
+
+    return y
 
 
 def add_precision_recall_of_each_box_to_list_each_box(prec_in, rec_in, prec_out, rec_out):
@@ -341,31 +357,32 @@ def get_precision_and_recall_train_test(number_of_repeats, function_string, pack
     prec_test = []
     rec_test = []
 
-    x_test, y_test = generate_data(function_string, dimension_max, 5000, 'test')
-
     for i in range(number_of_repeats):
         sys.stdout.write('\r' + 'experiment' + ' ' + str(i + 1) + '/' + str(number_of_repeats))
 
-        x, y = generate_data(function_string, dimension_max, 200, 'train')
+        x, y = generate_data(function_string, dimension_max, 200, 'train', package)
+        folds = KFold(n_splits=5, shuffle=True)
 
-        if preprocessing_string is not None:
-            for item in preprocessing_string:
-                x, y = item(x, y)
+        y = scale_y(y, function_string)
 
-        precisions, recalls, boxes = get_list_all_precisions_recalls_boxes(x, y, package, quality_function)
+        for fold, (train_id, test_id) in enumerate(folds.split(x)):
+            x_train, x_test = x.iloc[train_id], x.iloc[test_id]
+            y_train, y_test = y[train_id], y[test_id]
 
-        prec_train, rec_train = add_precision_recall_of_each_box_to_list_each_box(precisions, recalls, prec_train,
-                                                                                  rec_train)
+            if preprocessing_string is not None:
+                for item in preprocessing_string:
+                    x_train, y_train = item(x_train, y_train)
 
-        prec_test_temp, rec_test_temp = calculate_precision_recall_test_data_allboxes(boxes, x_test, y_test)
+            precisions, recalls, boxes = get_list_all_precisions_recalls_boxes(x_train, y_train, package,
+                                                                               quality_function)
 
-        prec_test, rec_test = add_precision_recall_of_each_box_to_list_each_box(prec_test_temp, rec_test_temp,
-                                                                                prec_test, rec_test)
+            prec_train, rec_train = add_precision_recall_of_each_box_to_list_each_box(precisions, recalls, prec_train,
+                                                                                      rec_train)
 
-    prec_test = [statistics.mean(l) for l in prec_test]
-    prec_train = [statistics.mean(l) for l in prec_train]
-    rec_test = [statistics.mean(l) for l in rec_test]
-    rec_train = [statistics.mean(l) for l in rec_train]
+            prec_test_temp, rec_test_temp = calculate_precision_recall_test_data_allboxes(boxes, x_test, y_test)
+
+            prec_test, rec_test = add_precision_recall_of_each_box_to_list_each_box(prec_test_temp, rec_test_temp,
+                                                                                    prec_test, rec_test)
 
     return prec_test, prec_train, rec_test, rec_train
 

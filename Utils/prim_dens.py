@@ -22,8 +22,10 @@ class PRIMdens:
     def fit(self):
         # Initial box is the unit box
         box = np.vstack((np.zeros(self.X_.shape[1]), np.ones(self.X_.shape[1])))
+        new_precision = -np.inf
+        new_recall = 1
 
-        for iteration in range(120):
+        while new_precision <= 1 and new_recall > 0.6:
             new_precision = -np.inf
             new_recall = -np.inf
             max_quality = -np.inf
@@ -31,9 +33,8 @@ class PRIMdens:
             best_box = None
             n_in_best_box = self.n_points  # Initially, all points are inside the box
             ind_in_best_box = None  # Initially, all points are inside the box
-            random_feature_order = random.sample(range(self.X_.shape[1]), self.X_.shape[1])
 
-            for dim in random_feature_order:
+            for dim in range(self.X_.shape[1]):
                 for direction in [0, 1]:  # 0 for lower bound, 1 for upper bound
                     trial_box = box.copy()
                     current_dim_length = trial_box[1, dim] - trial_box[0, dim]
