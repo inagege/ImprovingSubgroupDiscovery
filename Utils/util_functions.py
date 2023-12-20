@@ -31,10 +31,14 @@ def get_data(data_name):
     if (data_name) == 'Bryant':
         data = pd.read_csv(
             '/Users/inagege/Documents/00_Uni/Bachelorarbeit/ImprovingSubgroupDiscovery/Data/Bryant et al 2010.csv')
+        data.drop('Less than 10%', axis=1, inplace=True)
+        data.rename(columns={'Greater than 90%': 'label'}, inplace=True)
 
     if (data_name) == 'Rozenberg':
         data = pd.read_csv(
             '/Users/inagege/Documents/00_Uni/Bachelorarbeit/ImprovingSubgroupDiscovery/Data/Rozenberg et al 2014.csv')
+        data.drop(['SSP2', 'SSP3', 'SSP4'], axis=1, inplace=True)
+        data.rename(columns={'SSP1': 'label'}, inplace=True)
 
     if (data_name) == 'Susy':
         # Path to the Susy dataset .zip file
@@ -43,11 +47,12 @@ def get_data(data_name):
         # Open the Gzip-compressed CSV file
         with gzip.open(gz_file_path, 'rb') as gz_file:
             # Read the dataset into a DataFrame
-            data = pd.read_csv(gz_file)
+            data = pd.read_csv(gz_file, nrows=98049)
         columns = ['label', 'lepton  1 pT', 'lepton  1 eta', 'lepton  1 phi', 'lepton  2 pT', 'lepton  2 eta',
                    'lepton  2 phi', 'missing energy magnitude', 'missing energy phi', 'MET_rel', 'axial MET', 'M_R',
                    'M_TR_2', 'R', 'MT2', 'S_R', 'M_Delta_R', 'dPhi_r_b', 'cos(theta_r1)']
         data = pd.DataFrame(data.values, index=data.index, columns=columns)
+        data = data.iloc[:, [0] + list(range(data.shape[1] - 10, data.shape[1]))]
 
     if (data_name) == 'Higgs':
         gz_file_path = '/Users/inagege/Documents/00_Uni/Bachelorarbeit/ImprovingSubgroupDiscovery/Data/HIGGS.csv.gz'
@@ -55,20 +60,69 @@ def get_data(data_name):
         # Open the Gzip-compressed CSV file
         with gzip.open(gz_file_path, 'rb') as gz_file:
             # Read the dataset into a DataFrame
-            data = pd.read_csv(gz_file)
+            data = pd.read_csv(gz_file, nrows=98049)
 
         columns = ['label', 'lepton  pT', 'lepton  eta', 'lepton  phi', 'missing energy magnitude',
                    'missing energy phi', 'jet 1 pt', 'jet 1 eta', 'jet 1 phi', 'jet 1 b-tag', 'jet 2 pt', 'jet 2 eta',
                    'jet 2 phi', 'jet 2 b-tag', 'jet 3 pt', 'jet 3 eta', 'jet 3 phi', 'jet 3 b-tag', 'jet 4 pt',
                    'jet 4 eta', 'jet 4 phi', 'jet 4 b-tag', 'm_jj', 'm_jjj', 'm_lv', 'm_jlv', 'm_bb', 'm_wbb', 'm_wwbb']
         data = pd.DataFrame(data.values, index=data.index, columns=columns)
+        data = data[data.columns.drop(list(data.filter(regex='m_', axis=1)))]
+        data = pd.DataFrame(data.values, columns=data.columns)
+
+    if data_name == 'Occupancy':
+        data = pd.concat([pd.read_csv(
+            '/Users/inagege/Documents/00_Uni/Bachelorarbeit/ImprovingSubgroupDiscovery/Data/occupancy/datatest.txt',
+            delimiter=","), pd.read_csv(
+            '/Users/inagege/Documents/00_Uni/Bachelorarbeit/ImprovingSubgroupDiscovery/Data/occupancy/datatest2.txt',
+            delimiter=","), pd.read_csv(
+            '/Users/inagege/Documents/00_Uni/Bachelorarbeit/ImprovingSubgroupDiscovery/Data/occupancy/datatraining.txt',
+            delimiter=",")])
+        data['date'] = pd.to_datetime(data['date']).dt.hour
+        data.rename(columns={'Occupancy': 'label'}, inplace=True)
+        data = pd.DataFrame(data.values, columns=data.columns)
+
+    if data_name == "Htru":
+        data = pd.read_csv(
+            '/Users/inagege/Documents/00_Uni/Bachelorarbeit/ImprovingSubgroupDiscovery/Data/HTRU_2.csv',
+            delimiter=",", header=None)
+        data.rename(columns={8: 'label'}, inplace=True)
+
+    if data_name == "Shuttle":
+        data = pd.read_csv(
+            '/Users/inagege/Documents/00_Uni/Bachelorarbeit/ImprovingSubgroupDiscovery/Data/shuttle.csv',
+            header=None, delimiter=' ')
+        data.rename(columns={9: 'label'}, inplace=True)
+        data = data.drop(data.columns[0], axis=1)
+        data['label'] = data['label'].apply(lambda x: 1 if x == 1 else 0)
 
     return data
+
 
 def Higgs():
     return None
 
+
 def Susy():
+    return None
+
+
+def Bryant():
+    return None
+
+
+def Rozenberg():
+    return None
+
+
+def Occupancy():
+    return None
+
+
+def Htru():
+    return None
+
+def Shuttle():
     return None
 
 
@@ -86,14 +140,14 @@ def get_list_all_precisions_recalls_boxes(x, y, package, quality_function):
     """
 
     if package == 'prim':
-        prim_alg = prim_dens.PRIMdens(x.values, y, alpha=0.1, quality_measurement=quality_function)
+        prim_alg = prim_dens.PRIMdens(x.values, y, quality_measurement=quality_function)
         prim_alg.fit()
         return prim_alg.get_precisions(), prim_alg.get_recalls(), prim_alg.get_boxes()
     if package == "ema_workbench":
         recall = []
         precision = []
 
-        prim_alg = prim_emaworkbench.Prim(x, y, peel_alpha=0.1, threshold=0.7)
+        prim_alg = prim_emaworkbench.Prim(x, y, peel_alpha=0.05, threshold=0.7)
         boxes = prim_alg.find_box()
 
         for index, row in boxes.peeling_trajectory.iterrows():
@@ -307,16 +361,7 @@ def scale_y(y, function_string):
         min_value = np.min(y)
         max_value = np.max(y)
         y = (y - min_value) / (max_value - min_value)
-        threshold = 0.5
-
-        if function_string.__name__ == 'calculate_y_sobol_levitan1999':
-            threshold = 0.01
-
-        if function_string.__name__ == 'calculate_y_oakley_ohagan2004':
-            threshold = 0.6
-
-        if function_string.__name__ == 'calculate_y_moon2010':
-            threshold = 0.6
+        threshold = np.percentile(y, 70)
 
         y = np.where(y > threshold, 1, 0)
 
@@ -360,7 +405,7 @@ def get_precision_and_recall_train_test(number_of_repeats, function_string, pack
     for i in range(number_of_repeats):
         sys.stdout.write('\r' + 'experiment' + ' ' + str(i + 1) + '/' + str(number_of_repeats))
 
-        x, y = generate_data(function_string, dimension_max, 200, 'train', package)
+        x, y = generate_data(function_string, dimension_max, 200, 'test', package)
         folds = KFold(n_splits=5, shuffle=True)
 
         y = scale_y(y, function_string)

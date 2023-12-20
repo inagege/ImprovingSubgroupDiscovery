@@ -1,3 +1,5 @@
+import math
+
 import numpy as np
 
 
@@ -153,4 +155,47 @@ def calculate_y_sobol_levitan1999(x, b=None, c0=0):
         summation += bi * xi
 
     y = np.exp(summation) - id + c0
+    return y
+
+
+def calculate_y_welch(x):
+    x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16, x17, x18, x19, x20 = x
+
+    term1 = 5 * x12 / (1 + x1)
+    term2 = 5 * (x4 - x20) ** 2
+    term3 = x5 + 40 * x19 ** 3 - 5 * x19
+    term4 = 0.05 * x2 + 0.08 * x3 - 0.03 * x6
+    term5 = 0.03 * x7 - 0.09 * x9 - 0.01 * x10
+    term6 = -0.07 * x11 + 0.25 * x13 ** 2 - 0.04 * x14
+    term7 = 0.06 * x15 - 0.01 * x17 - 0.03 * x18
+
+    y = term1 + term2 + term3 + term4 + term5 + term6 + term7
+
+    return y
+
+
+def calculate_y_loeppky(x):
+
+    x1, x2, x3, x4, x5, x6, x7 = x
+
+    term1 = 6 * x1 + 4 * x2
+    term2 = 5.5 * x3 + 3 * x1 * x2
+    term3 = 2.2 * x1 * x3 + 1.4 * x2 * x3
+    term4 = x4 + 0.5 * x5
+    term5 = 0.2 * x6 + 0.1 * x7
+
+    y = term1 + term2 + term3 + term4 + term5
+    return y
+
+
+def calculate_y_borehole(x):
+    rw, r, tu, hu, tl, hl, l, kw = x
+
+    frac1 = 2 * math.pi * tu * (hu - hl)
+
+    frac2a = 2 * l * tu / (math.log(r / rw) * rw ** 2 * kw)
+    frac2b = tu / tl
+    frac2 = math.log(r / rw) * (1 + frac2a + frac2b)
+
+    y = frac1 / frac2
     return y

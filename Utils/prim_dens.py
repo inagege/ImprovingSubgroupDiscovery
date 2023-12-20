@@ -23,15 +23,15 @@ class PRIMdens:
         # Initial box is the unit box
         box = np.vstack((np.zeros(self.X_.shape[1]), np.ones(self.X_.shape[1])))
         new_precision = -np.inf
-        new_recall = 1
+        n_in_best_box = self.n_points  # Initially, all points are inside the box
+        max_quality = -np.inf
 
-        while new_precision <= 1 and new_recall > 0.6:
+        while new_precision < 1:
             new_precision = -np.inf
             new_recall = -np.inf
-            max_quality = -np.inf
+            temp_quality = 0
             best_cut = None
             best_box = None
-            n_in_best_box = self.n_points  # Initially, all points are inside the box
             ind_in_best_box = None  # Initially, all points are inside the box
 
             for dim in range(self.X_.shape[1]):
@@ -54,25 +54,28 @@ class PRIMdens:
 
                     quality = self.calculate_quality_()
 
-                    if quality > max_quality:
+                    if quality > (1 + self.alpha / 2) * max_quality and quality > (1 + self.alpha / 2) * temp_quality:
                         new_precision = self.calculate_precision_()
                         new_recall = self.calculate_recall_()
-                        max_quality = quality
+                        temp_quality = quality
                         best_cut = (dim, direction)
                         best_box = trial_box
                         n_in_best_box = self.n_in_box_  # Update the count for best box
                         ind_in_best_box = self.in_box_
 
             # If we can't find a cut that improves precision or the box contains less than 1/alpha points, break
-            if best_cut is None or n_in_best_box < 1 / self.alpha:
+            if best_cut is None or (n_in_best_box / self.n_points) < self.alpha:
                 break
+
+            if temp_quality > max_quality:
+                max_quality = temp_quality
 
             # Update the box and record it
             box = best_box
             self.boxes_.append(box)
             self.precisions_.append(new_precision)
             self.recalls_.append(new_recall)
-            self.qualities_.append(max_quality)
+            self.qualities_.append(temp_quality)
             self.X_ = self.X_[ind_in_best_box]
             self.y_ = self.y_[ind_in_best_box]
 
@@ -105,3 +108,4 @@ class PRIMdens:
 
     def calculate_accuracy_(self):
         return (np.count_nonzero(self.y_[self.in_box_]) + np.count_nonzero(self.y_[~self.in_box_])) / self.n_points
+

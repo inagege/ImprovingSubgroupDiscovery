@@ -213,8 +213,8 @@ def visualize_precision_recall_all_boxes(number_of_repeats, package, dimension_m
     plt.show()
 
 
-def create_heatmap_best_box_generated_data_precision_kfold(function_string, dimension_max, package, preprocessing_string,
-                                                     number_of_repeats):
+def create_heatmap_best_box_generated_data_precision_kfold(function_string, dimension_max, package,
+                                                           preprocessing_string, number_of_repeats):
     """
     Create a plot comparing precision results for different dataset sizes and dimensions using kfold cross validation.
 
@@ -230,10 +230,8 @@ def create_heatmap_best_box_generated_data_precision_kfold(function_string, dime
     """
 
     pts = [200, 400, 800, 1600, 3200, 6400]  # number of points to experiment with
-    atrs = []  # number of dimensions to experiment with
-
-    for i in range(int(dimension_max / 5)):
-        atrs.append(5 * (i + 1))
+    atrs = []
+    atrs.append(dimension_max)
 
     results = np.empty((len(pts), len(atrs)))  # matrix with the results
     results[:] = np.nan
@@ -244,7 +242,7 @@ def create_heatmap_best_box_generated_data_precision_kfold(function_string, dime
         for m in range(len(atrs)):
             prec_train = []
             prec_test = []
-            rec_train =[]
+            rec_train = []
             rec_test = []
             for i in range(number_of_repeats):
                 sys.stdout.write('\r' + 'experiment' + ' ' + str(k) + '/' + str(len(pts) * len(atrs)
@@ -297,8 +295,8 @@ def create_heatmap_best_box_generated_data_precision_kfold(function_string, dime
     plt.show()
 
 
-def create_heatmap_best_box_generated_data_precision_kfold_last_box(function_string, dimension_max, package, preprocessing_string,
-                                                     number_of_repeats):
+def create_heatmap_best_box_generated_data_precision_kfold_last_box(function_string, dimension_max, package,
+                                                                    preprocessing_string, number_of_repeats):
     """
     Create a plot comparing precision results for different dataset sizes and dimensions using kfold cross validation.
 
@@ -313,11 +311,10 @@ def create_heatmap_best_box_generated_data_precision_kfold_last_box(function_str
     - None: Displays a heatmap plot and the precisions of the boxes.
     """
 
-    pts = [200, 400, 800, 1600, 3200, 6400]  # number of points to experiment with
+    pts = [50, 100, 200, 400, 800]#, 1600, 3200, 6400]  # number of points to experiment with
     atrs = []  # number of dimensions to experiment with
 
-    for i in range(int(dimension_max / 5)):
-        atrs.append(5 * (i + 1))
+    atrs.append(dimension_max)
 
     res_train = np.empty((len(pts), len(atrs)))  # matrix with the results
     res_train[:] = np.nan
@@ -342,9 +339,6 @@ def create_heatmap_best_box_generated_data_precision_kfold_last_box(function_str
                 folds = KFold(n_splits=5, shuffle=True)
 
                 y = scale_y(y, function_string)
-
-                selected_columns = random.sample(list(x.columns), atrs[m])
-                x = x[selected_columns]
 
                 for fold, (train_id, test_id) in enumerate(folds.split(x)):
                     x_train, x_test = x.iloc[train_id], x.iloc[test_id]
@@ -373,7 +367,14 @@ def create_heatmap_best_box_generated_data_precision_kfold_last_box(function_str
             res_train[n, m] = np.mean(prec_train)
             res_test[n, m] = np.mean(prec_test)
 
-    plt.imshow(res_train - res_test, cmap='hot', vmin=0, vmax=1)
+    plt.imshow(abs(res_train - res_test), cmap='CMRmap', vmin=0, vmax=1)
+
+    for i in range(len(pts)):
+        for j in range(len(atrs)):
+            text = f'{res_train[i, j]:.2f}\n{res_test[i, j]:.2f}'
+            plt.text(j, i, text, ha='center', va='center',
+                     color='white' if res_train[i, j] - res_test[i, j] < 0.35 else 'black', fontweight='bold')
+
     plt.yticks(np.arange(len(pts)), pts)
     plt.xticks(np.arange(len(atrs)), atrs)
     plt.colorbar()

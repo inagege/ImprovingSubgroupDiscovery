@@ -1,7 +1,6 @@
 import pandas as pd
 from scipy.stats import zscore
 import numpy as np
-from sklearn.metrics import accuracy_score
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.preprocessing import KBinsDiscretizer
 import imblearn as il
@@ -142,8 +141,19 @@ def add_data_with_smote(x, y):
     labeled_zero = counter[0]
     labeled_one = counter[1]
 
-    labeled_zero = math.ceil(3000 * labeled_zero / len(y))
-    labeled_one = math.ceil(3000 * labeled_one / len(y))
+    while labeled_one < 3:
+        x_dup = x.loc[y == 1].copy()
+
+        # Append the duplicated rows to the original DataFrame
+        x = pd.concat([x, x_dup], ignore_index=True)
+        y = np.concatenate([y, y[y == 1]])
+
+        counter = Counter(y)
+        labeled_zero = counter[0]
+        labeled_one = counter[1]
+
+    labeled_zero = math.ceil(1500 * labeled_zero / len(y))
+    labeled_one = math.ceil(1500 * labeled_one / len(y))
 
     sampling_strategy = {0: labeled_zero, 1: labeled_one}
     oversample = il.over_sampling.SMOTE(sampling_strategy=sampling_strategy, k_neighbors=2)
@@ -170,7 +180,7 @@ def add_data_with_dtc(x, y):
     # Train the model on the training data
     rf_classifier.fit(x, y)
 
-    x_new = np.random.rand(3000, x.shape[1])
+    x_new = np.random.rand(1500, x.shape[1])
     x_new = pd.DataFrame(x_new)
     x = pd.concat([x, x_new], axis=0)
     x = pd.DataFrame(x.values)
