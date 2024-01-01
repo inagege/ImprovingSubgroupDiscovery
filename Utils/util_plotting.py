@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 
 from Utils.util_functions import *
 import sys
@@ -132,85 +133,90 @@ def visualize_precision_and_recall(precision_baseline, recall_baseline, precisio
 
 
 def visualize_precision_recall_all_boxes(number_of_repeats, package, dimension_max, preprocessing_string,
-                                         data_generator):
-
+                                         data_generator, path):
     prec_test, prec_train, rec_test, rec_train = get_precision_and_recall_train_test(number_of_repeats,
                                                                                      data_generator,
                                                                                      package, preprocessing_string,
                                                                                      dimension_max)
 
-    prec_test = [statistics.mean(l) for l in prec_test]
-    prec_train = [statistics.mean(l) for l in prec_train]
-    rec_test = [statistics.mean(l) for l in rec_test]
-    rec_train = [statistics.mean(l) for l in rec_train]
+    prec_test_mean = [statistics.mean(l) for l in prec_test]
+    prec_train_mean = [statistics.mean(l) for l in prec_train]
+    rec_test_mean = [statistics.mean(l) for l in rec_test]
+    rec_train_mean = [statistics.mean(l) for l in rec_train]
 
-    while len(prec_test) != len(prec_train):
-        if len(prec_train) > len(prec_test):
-            prec_test.append(0)
+    prec_test_std = [statistics.stdev(l) if len(l) > 1 else 0 for l in prec_test]
+    prec_train_std = [statistics.stdev(l) if len(l) > 1 else 0 for l in prec_train]
+    rec_test_std = [statistics.stdev(l) if len(l) > 1 else 0 for l in rec_test]
+    rec_train_std = [statistics.stdev(l) if len(l) > 1 else 0 for l in rec_train]
+
+    while len(prec_test_mean) != len(prec_train_mean):
+        if len(prec_train_mean) > len(prec_test_mean):
+            prec_test_mean.append(0)
         else:
-            prec_train.append(0)
+            prec_train_mean.append(0)
 
-    while len(rec_test) != len(rec_train):
-        if len(rec_train) > len(rec_test):
-            rec_test.append(0)
+    while len(rec_test_mean) != len(rec_train_mean):
+        if len(rec_train_mean) > len(rec_test_mean):
+            rec_test_mean.append(0)
         else:
-            rec_train.append(0)
+            rec_train_mean.append(0)
 
-    #plt.figure(figsize=(8, 6))
-    #fig_prec, ax_prec = plt.subplots()
-    #ax_prec.boxplot(prec_train, boxprops={'color': 'red', 'facecolor': None}, medianprops={'color': 'red', 'linewidth': 3}, capprops={'color': 'red'},
-                #flierprops={'color': 'red'}, whiskerprops={'color': 'red'}, patch_artist=True, showfliers=False)
-    #ax_prec.boxplot(prec_test, boxprops={'color': 'yellow', 'facecolor': None}, medianprops={'color': 'yellow', 'linewidth': 3}, capprops={'color': 'yellow'},
-                #flierprops={'color': 'yellow'}, whiskerprops={'color': 'yellow'}, patch_artist=True, showfliers=False)
+    pd.DataFrame(np.array(prec_test_mean).T).to_csv(path + '/prec_test.csv')
+    pd.DataFrame(np.array(rec_test_mean).T).to_csv(path + '/rec_test.csv')
+    pd.DataFrame(np.array(prec_train_mean).T).to_csv(path + '/prec_train.csv')
+    pd.DataFrame(np.array(rec_train_mean).T).to_csv(path + '/rec_train.csv')
 
-    #fig_rec, ax_rec = plt.subplots()
-    #ax_rec.boxplot(rec_train, boxprops={'color': 'red', 'facecolor': None},
-                    #medianprops={'color': 'red', 'linewidth': 3}, capprops={'color': 'red'},
-                    #flierprops={'color': 'red'}, whiskerprops={'color': 'red'}, patch_artist=True, showfliers=False)
-    #ax_rec.boxplot(rec_test, boxprops={'color': 'yellow', 'facecolor': None},
-                    #medianprops={'color': 'yellow', 'linewidth': 3}, capprops={'color': 'yellow'},
-                    #flierprops={'color': 'yellow'}, whiskerprops={'color': 'yellow'}, patch_artist=True,
-                    #showfliers=False)
+    pd.DataFrame(np.array(prec_test_std).T).to_csv(path + '/prec_test_std.csv')
+    pd.DataFrame(np.array(rec_test_std).T).to_csv(path + '/rec_test_std.csv')
+    pd.DataFrame(np.array(prec_train_std).T).to_csv(path + '/prec_train_std.csv')
+    pd.DataFrame(np.array(rec_train_std).T).to_csv(path + '/rec_train_std.csv')
 
-    diff_prec = np.array(prec_train) - np.array(prec_test)
+    fig, axs = plt.subplots(2, 1, figsize=(6, 9))
+    axs = axs.flatten()
 
-    plt.figure(figsize=(8, 6))
-    fig_prec, ax_prec = plt.subplots()
-    ax_prec.scatter(range(len(prec_train)), prec_train, c='red', marker='o', label='Precision Train')
+    axs[0].scatter(range(len(prec_train_mean)), prec_train_mean, c='red', marker='o', label='Train')
+    axs[0].scatter(range(len(prec_test_mean)), prec_test_mean, c='blue', marker='o', label='Test')
+    axs[0].fill_between(range(len(prec_train_mean)),
+                        [m - s for m, s in zip(prec_train_mean, prec_train_std)],
+                        [m + s for m, s in zip(prec_train_mean, prec_train_std)],
+                        color='red', alpha=0.2)
+    axs[0].fill_between(range(len(prec_test_mean)),
+                        [m - s for m, s in zip(prec_test_mean, prec_test_std)],
+                        [m + s for m, s in zip(prec_test_mean, prec_test_std)],
+                        color='blue', alpha=0.2)
 
-    ax_prec.scatter(range(len(prec_test)), prec_test, c='yellow', marker='o', label='Precision Test')
+    # Recall plot with shaded standard deviation
+    axs[1].scatter(range(len(rec_train_mean)), rec_train_mean, c='red', marker='o', label='Train')
+    axs[1].scatter(range(len(rec_test_mean)), rec_test_mean, c='blue', marker='o', label='Test')
+    axs[1].fill_between(range(len(rec_train_mean)),
+                        [m - s for m, s in zip(rec_train_mean, rec_train_std)],
+                        [m + s for m, s in zip(rec_train_mean, rec_train_std)],
+                        color='red', alpha=0.2)
+    axs[1].fill_between(range(len(rec_test_mean)),
+                        [m - s for m, s in zip(rec_test_mean, rec_test_std)],
+                        [m + s for m, s in zip(rec_test_mean, rec_test_std)],
+                        color='blue', alpha=0.2)
 
-    ax_prec.scatter(range(len(diff_prec)), diff_prec, c='blue', marker='o', label='Gap')
-
-    diff_rec = np.array(rec_train) - np.array(rec_test)
-    fig_rec, ax_rec = plt.subplots()
-    ax_rec.scatter(range(len(rec_train)), rec_train, c='red', marker='o', label='Precision Train')
-
-    ax_rec.scatter(range(len(rec_test)), rec_test, c='yellow', marker='o', label='Precision Test')
-
-    ax_rec.scatter(range(len(diff_rec)), diff_rec, c='blue', marker='o', label='Gap')
-
-    ax_prec.set_xlim(0, len(diff_rec) + 0.1)
-    ax_prec.set_ylim(0, 1.1)
+    axs[0].set_xlim(0, len(prec_train_mean) + 0.1)
+    axs[0].set_ylim(0, 1.1)
+    axs[1].set_xlim(0, len(rec_test_mean) + 0.1)
+    axs[1].set_ylim(0, 1.1)
 
     # Add labels and a legend
-    ax_prec.set_xlabel('Number of Box')
-    ax_prec.set_ylabel('Precision')
-    ax_prec.set_title('Gap Precision all Boxes')
-    ax_prec.legend()
-
-    ax_rec.set_xlim(0, len(diff_prec) + 0.1)
-    ax_rec.set_ylim(0, 1.1)
+    axs[0].set_xlabel('Number of Box', fontsize=15)
+    axs[0].set_ylabel('Precision', fontsize=15)
+    axs[0].legend(fontsize=15)
 
     # Add labels and a legend
-    ax_rec.set_xlabel('Number of Box')
-    ax_rec.set_ylabel('Recall')
-    ax_rec.set_title('Gap Recall all Boxes')
-    ax_rec.legend()
+    axs[1].set_xlabel('Number of Box', fontsize=15)
+    axs[1].set_ylabel('Recall', fontsize=15)
+    axs[1].legend(fontsize=15)
 
-    ax_rec.grid(True)
-    ax_prec.grid(True)
-    plt.show()
+    axs[1].grid(True)
+    axs[0].grid(True)
+    plt.savefig(
+        path + '/results_zoomed.svg',
+        format='svg')
 
 
 def create_heatmap_best_box_generated_data_precision_kfold(function_string, dimension_max, package,
@@ -287,7 +293,6 @@ def create_heatmap_best_box_generated_data_precision_kfold(function_string, dime
 
             results[n, m] = np.mean(np.array(prec_train) - np.array(prec_test))
 
-
     plt.imshow(results, cmap='hot', vmin=0, vmax=1)
     plt.yticks(np.arange(len(pts)), pts)
     plt.xticks(np.arange(len(atrs)), atrs)
@@ -296,7 +301,8 @@ def create_heatmap_best_box_generated_data_precision_kfold(function_string, dime
 
 
 def create_heatmap_best_box_generated_data_precision_kfold_last_box(function_string, dimension_max, package,
-                                                                    preprocessing_string, number_of_repeats):
+                                                                    preprocessing_string, number_of_repeats, pts=
+                                                                    None):
     """
     Create a plot comparing precision results for different dataset sizes and dimensions using kfold cross validation.
 
@@ -311,7 +317,9 @@ def create_heatmap_best_box_generated_data_precision_kfold_last_box(function_str
     - None: Displays a heatmap plot and the precisions of the boxes.
     """
 
-    pts = [50, 100, 200, 400, 800]#, 1600, 3200, 6400]  # number of points to experiment with
+    if pts is None:
+        pts = [50, 100, 200, 400, 800, 1600, 3200, 6400]
+
     atrs = []  # number of dimensions to experiment with
 
     atrs.append(dimension_max)
@@ -367,18 +375,54 @@ def create_heatmap_best_box_generated_data_precision_kfold_last_box(function_str
             res_train[n, m] = np.mean(prec_train)
             res_test[n, m] = np.mean(prec_test)
 
-    plt.imshow(abs(res_train - res_test), cmap='CMRmap', vmin=0, vmax=1)
+    return flat_prec_rec(res_train, res_test)
 
-    for i in range(len(pts)):
-        for j in range(len(atrs)):
-            text = f'{res_train[i, j]:.2f}\n{res_test[i, j]:.2f}'
-            plt.text(j, i, text, ha='center', va='center',
-                     color='white' if res_train[i, j] - res_test[i, j] < 0.35 else 'black', fontweight='bold')
 
-    plt.yticks(np.arange(len(pts)), pts)
-    plt.xticks(np.arange(len(atrs)), atrs)
-    plt.colorbar()
-    plt.show()
-    print(res_test)
-    print(res_train)
+def heatmap_all_results(number_of_repeats, package, preprocessing_string, synthetic_or_real, path):
+    res_train = []
+    res_test = []
+    data_names_dims = []
+
+    data_info = get_data_information(synthetic_or_real)
+
+    for row in data_info.iterrows():
+        temp_tr, temp_te = create_heatmap_best_box_generated_data_precision_kfold_last_box(row[1]['function'],
+                                                                                           row[1]['dim'], package,
+                                                                                           preprocessing_string,
+                                                                                           number_of_repeats,
+                                                                                           row[1]['pts'])
+        while len(temp_tr) < 8:
+            temp_tr.append(0)
+            temp_te.append(0)
+
+        res_train.append(temp_tr)
+        res_test.append(temp_te)
+        data_names_dims.append('d=' + str(row[1]['dim']) + ', ' + row[1]['function'].__name__)
+        pd.DataFrame(np.array(res_test).T).to_csv(path + 'res_test.csv')
+        pd.DataFrame(np.array(res_train).T).to_csv(path + 'res_train.csv')
+
+    res_test = np.array(res_test).T
+    res_train = np.array(res_train).T
+
+    plt.figure(figsize=(8, 8.5))
+
+    plt.imshow(res_train - res_test, cmap='RdBu', vmin=-1, vmax=1)
+
+    for i in range(8):
+        for j in range(7):
+            if res_train[i, j] > 0:
+                text = f'{res_train[i, j]:.2f}\n{res_test[i, j]:.2f}'
+                plt.text(j, i, text, ha='center', va='center', fontsize=20,
+                         color='white' if res_train[i, j] - res_test[i, j] > 0.65 else 'black')
+
+    plt.yticks(np.arange(8), np.array([50, 100, 200, 400, 800, 1600, 3200, 6400]), fontsize=15)
+    plt.xticks(np.arange(7), data_names_dims, rotation=45, ha="right", fontsize=15)
+    plt.xlabel('data set and dimensionality', weight='bold', fontsize=20)
+    plt.ylabel('number of points', weight='bold', fontsize=20)
+    colorbar = plt.colorbar()
+    colorbar.ax.yaxis.set_tick_params(labelsize=20)
+    plt.tight_layout()
+    plt.savefig(
+        path + 'all_results.svg',
+        format='svg')
 

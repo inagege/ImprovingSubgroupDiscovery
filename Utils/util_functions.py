@@ -31,6 +31,7 @@ def get_data(data_name):
     if (data_name) == 'Bryant':
         data = pd.read_csv(
             '/Users/inagege/Documents/00_Uni/Bachelorarbeit/ImprovingSubgroupDiscovery/Data/Bryant et al 2010.csv')
+        data['Greater than 90%'] = (data['Greater than 90%'] | data['Less than 10%']).astype(int)
         data.drop('Less than 10%', axis=1, inplace=True)
         data.rename(columns={'Greater than 90%': 'label'}, inplace=True)
 
@@ -121,6 +122,7 @@ def Occupancy():
 
 def Htru():
     return None
+
 
 def Shuttle():
     return None
@@ -401,14 +403,19 @@ def get_precision_and_recall_train_test(number_of_repeats, function_string, pack
 
     prec_test = []
     rec_test = []
+    data = None
+
+    if 'calculate' not in function_string.__name__:
+        data = get_data(function_string.__name__)
 
     for i in range(number_of_repeats):
         sys.stdout.write('\r' + 'experiment' + ' ' + str(i + 1) + '/' + str(number_of_repeats))
 
-        x, y = generate_data(function_string, dimension_max, 200, 'test', package)
+        x, y = generate_data(function_string, dimension_max, 200, 'train', package, data)
         folds = KFold(n_splits=5, shuffle=True)
 
-        y = scale_y(y, function_string)
+        if 'calculate' in function_string.__name__:
+            y = scale_y(y, function_string)
 
         for fold, (train_id, test_id) in enumerate(folds.split(x)):
             x_train, x_test = x.iloc[train_id], x.iloc[test_id]
@@ -443,3 +450,71 @@ def calculate_tp_fp_tn_fn(y_test, row_index, is_within_limits, tp, fp, tn, fn):
         fn = fn + 1
 
     return tp, fp, tn, fn
+
+
+def get_data_information(synthetic_or_real):
+    data_info = None
+    if synthetic_or_real == 'r':
+        rozenberg = [Rozenberg, 7, [50, 100, 200]]
+        bryant = [Bryant, 14, [50, 100, 200, 400, 800]]
+        higgs = [Higgs, 28, [50, 100, 200, 400, 800, 1600, 3200, 6400]]
+        susy = [Susy, 14, [50, 100, 200, 400, 800, 1600, 3200, 6400]]
+        occupancy = [Occupancy, 14, [50, 100, 200, 400, 800, 1600, 3200, 6400]]
+        htru = [Htru, 14, [50, 100, 200, 400, 800, 1600, 3200, 6400]]
+        shuttle = [Shuttle, 14, [50, 100, 200, 400, 800, 1600, 3200, 6400]]
+
+        columns = ['function', 'dim', 'pts']
+        index = ['rozenberg', 'bryant', 'higgs', 'susy', 'occupancy', 'htru', 'shuttle']
+
+        data_info = pd.DataFrame([rozenberg, bryant, higgs, susy, occupancy, htru, shuttle], index=index,
+                                 columns=columns)
+
+    if synthetic_or_real == 's':
+        moon = [calculate_y_moon2010, 20, [50, 100, 200, 400, 800, 1600, 3200, 6400]]
+        morris = [calculate_y_morris, 30, [50, 100, 200, 400, 800, 1600, 3200, 6400]]
+        oakley = [calculate_y_oakley_ohagan2004, 15, [50, 100, 200, 400, 800, 1600, 3200, 6400]]
+        sobol = [calculate_y_sobol_levitan1999, 20, [50, 100, 200, 400, 800, 1600, 3200, 6400]]
+        welch = [calculate_y_welch, 20, [50, 100, 200, 400, 800, 1600, 3200, 6400]]
+        loeppky = [calculate_y_loeppky, 7, [50, 100, 200, 400, 800, 1600, 3200, 6400]]
+        borehole = [calculate_y_borehole, 8, [50, 100, 200, 400, 800, 1600, 3200, 6400]]
+
+        columns = ['function', 'dim', 'pts']
+        index = ['moon', 'morris', 'oakley', 'sobol', 'welch', 'loeppky', 'borehole']
+        data_info = pd.DataFrame([moon, morris, oakley, sobol, welch, loeppky, borehole], index=index,
+                                 columns=columns)
+
+    return data_info
+
+
+def get_edited(synthetic_or_real):
+    data_info = None
+    if synthetic_or_real == 'r':
+        rozenberg = [Rozenberg, 7, [50, 100, 200]]
+        bryant = [Bryant, 14, [50, 100, 200, 400, 800]]
+        higgs = [Higgs, 28, [50, 100, 200, 400, 800]]
+        susy = [Susy, 14, [50, 100, 200, 400, 800]]
+        occupancy = [Occupancy, 14, [50, 100, 200, 400, 800]]
+        htru = [Htru, 14, [50, 100, 200, 400, 800]]
+        shuttle = [Shuttle, 14, [50, 100, 200, 400, 800]]
+
+        columns = ['function', 'dim', 'pts']
+        index = ['rozenberg', 'bryant', 'higgs', 'susy', 'occupancy', 'htru', 'shuttle']
+
+        data_info = pd.DataFrame([rozenberg, bryant, higgs, susy, occupancy, htru, shuttle], index=index,
+                                 columns=columns)
+
+    if synthetic_or_real == 's':
+        moon = [calculate_y_moon2010, 20, [50, 100, 200, 400, 800, 1600, 3200, 6400]]
+        morris = [calculate_y_morris, 30, [50, 100, 200, 400, 800, 1600, 3200, 6400]]
+        oakley = [calculate_y_oakley_ohagan2004, 15, [50, 100, 200, 400, 800, 1600, 3200, 6400]]
+        sobol = [calculate_y_sobol_levitan1999, 20, [50, 100, 200, 400, 800, 1600, 3200, 6400]]
+        welch = [calculate_y_welch, 20, [50, 100, 200, 400, 800, 1600, 3200, 6400]]
+        loeppky = [calculate_y_loeppky, 7, [50, 100, 200, 400, 800, 1600, 3200, 6400]]
+        borehole = [calculate_y_borehole, 8, [50, 100, 200, 400, 800, 1600, 3200, 6400]]
+
+        columns = ['function', 'dim', 'pts']
+        index = ['moon', 'morris', 'oakley', 'sobol', 'welch', 'loeppky', 'borehole']
+        data_info = pd.DataFrame([moon, morris, oakley, sobol, welch, loeppky, borehole], index=index,
+                                 columns=columns)
+
+    return data_info

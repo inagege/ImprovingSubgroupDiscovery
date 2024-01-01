@@ -14,6 +14,7 @@ class PRIMdens:
         self.in_box_ = []
         self.n_in_box_ = 0
         self.n_points = self.X_.shape[0]
+        self.num_ones = np.count_nonzero(self.y_)
         if callable(getattr(self, 'calculate_' + quality_measurement + '_')):
             self.quality_measurement = getattr(self, 'calculate_' + quality_measurement + '_')
         else:
@@ -22,11 +23,10 @@ class PRIMdens:
     def fit(self):
         # Initial box is the unit box
         box = np.vstack((np.zeros(self.X_.shape[1]), np.ones(self.X_.shape[1])))
-        new_precision = -np.inf
         n_in_best_box = self.n_points  # Initially, all points are inside the box
         max_quality = -np.inf
 
-        while new_precision < 1:
+        while max_quality < 1:
             new_precision = -np.inf
             new_recall = -np.inf
             temp_quality = 0
@@ -54,7 +54,8 @@ class PRIMdens:
 
                     quality = self.calculate_quality_()
 
-                    if quality > (1 + self.alpha / 2) * max_quality and quality > (1 + self.alpha / 2) * temp_quality:
+                    if quality > (1 - self.alpha / 2) * max_quality and quality > (1 - self.alpha / 2) * temp_quality\
+                            and self.n_in_box_ < n_in_best_box:
                         new_precision = self.calculate_precision_()
                         new_recall = self.calculate_recall_()
                         temp_quality = quality
@@ -101,11 +102,12 @@ class PRIMdens:
             else 0
 
     def calculate_f1score_(self):
-        beta = 0.075
-        return (((1 + beta * beta) * 2 * self.calculate_precision_() * self.calculate_recall_())
+        beta = 0.15
+        return (((1 + beta * beta) * self.calculate_precision_() * self.calculate_recall_())
                 / (beta * beta * self.calculate_precision_() + self.calculate_recall_())) \
             if (beta * beta * self.calculate_precision_() + self.calculate_recall_() > 0) else 0
 
     def calculate_accuracy_(self):
-        return (np.count_nonzero(self.y_[self.in_box_]) + np.count_nonzero(self.y_[~self.in_box_])) / self.n_points
+        return ((np.count_nonzero(self.y_[self.in_box_]) + np.sum(np.logical_and(self.y_ == 0, self.in_box_ == 0)))
+                / self.n_points)
 
