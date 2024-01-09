@@ -7,6 +7,9 @@ import random
 from matplotlib import pyplot as plt
 from sklearn.model_selection import KFold
 import seaborn as sns
+from matplotlib.colors import LinearSegmentedColormap
+from matplotlib import colormaps
+import matplotlib.colors as mcolors
 
 
 def create_heatmap_best_box_generated_data_precision(function_string, dimension_max, package, preprocessing_string,
@@ -134,7 +137,7 @@ def visualize_precision_and_recall(precision_baseline, recall_baseline, precisio
 
 def visualize_precision_recall_all_boxes(number_of_repeats, package, dimension_max, preprocessing_string,
                                          data_generator, path):
-    prec_test, prec_train, rec_test, rec_train = get_precision_and_recall_train_test(number_of_repeats,
+    prec_test, prec_train, rec_test, rec_train, all_n_in_boxes = get_precision_and_recall_train_test(number_of_repeats,
                                                                                      data_generator,
                                                                                      package, preprocessing_string,
                                                                                      dimension_max)
@@ -143,6 +146,8 @@ def visualize_precision_recall_all_boxes(number_of_repeats, package, dimension_m
     prec_train_mean = [statistics.mean(l) for l in prec_train]
     rec_test_mean = [statistics.mean(l) for l in rec_test]
     rec_train_mean = [statistics.mean(l) for l in rec_train]
+
+    all_n_in_boxes_mean = [statistics.mean(l) for l in all_n_in_boxes]
 
     prec_test_std = [statistics.stdev(l) if len(l) > 1 else 0 for l in prec_test]
     prec_train_std = [statistics.stdev(l) if len(l) > 1 else 0 for l in prec_train]
@@ -161,17 +166,17 @@ def visualize_precision_recall_all_boxes(number_of_repeats, package, dimension_m
         else:
             rec_train_mean.append(0)
 
-    pd.DataFrame(np.array(prec_test_mean).T).to_csv(path + '/prec_test.csv')
-    pd.DataFrame(np.array(rec_test_mean).T).to_csv(path + '/rec_test.csv')
-    pd.DataFrame(np.array(prec_train_mean).T).to_csv(path + '/prec_train.csv')
-    pd.DataFrame(np.array(rec_train_mean).T).to_csv(path + '/rec_train.csv')
+    pd.DataFrame(np.array(prec_test_mean).T).to_csv(path + '/100_prec_test.csv')
+    pd.DataFrame(np.array(rec_test_mean).T).to_csv(path + '/100_rec_test.csv')
+    pd.DataFrame(np.array(prec_train_mean).T).to_csv(path + '/100_prec_train.csv')
+    pd.DataFrame(np.array(rec_train_mean).T).to_csv(path + '/100_rec_train.csv')
 
-    pd.DataFrame(np.array(prec_test_std).T).to_csv(path + '/prec_test_std.csv')
-    pd.DataFrame(np.array(rec_test_std).T).to_csv(path + '/rec_test_std.csv')
-    pd.DataFrame(np.array(prec_train_std).T).to_csv(path + '/prec_train_std.csv')
-    pd.DataFrame(np.array(rec_train_std).T).to_csv(path + '/rec_train_std.csv')
+    pd.DataFrame(np.array(prec_test_std).T).to_csv(path + '/100_prec_test_std.csv')
+    pd.DataFrame(np.array(rec_test_std).T).to_csv(path + '/100_rec_test_std.csv')
+    pd.DataFrame(np.array(prec_train_std).T).to_csv(path + '/100_prec_train_std.csv')
+    pd.DataFrame(np.array(rec_train_std).T).to_csv(path + '/100_rec_train_std.csv')
 
-    fig, axs = plt.subplots(2, 1, figsize=(6, 9))
+    fig, axs = plt.subplots(2, 1, figsize=(15, 10))
     axs = axs.flatten()
 
     axs[0].scatter(range(len(prec_train_mean)), prec_train_mean, c='red', marker='o', label='Train')
@@ -199,23 +204,27 @@ def visualize_precision_recall_all_boxes(number_of_repeats, package, dimension_m
 
     axs[0].set_xlim(0, len(prec_train_mean) + 0.1)
     axs[0].set_ylim(0, 1.1)
+    axs[0].set_xticks(np.arange(len(all_n_in_boxes)))
+    axs[0].set_xticklabels(all_n_in_boxes_mean, rotation=45)
     axs[1].set_xlim(0, len(rec_test_mean) + 0.1)
     axs[1].set_ylim(0, 1.1)
+    axs[1].set_xticks(np.arange(len(all_n_in_boxes)))
+    axs[1].set_xticklabels(all_n_in_boxes_mean, rotation=45)
 
     # Add labels and a legend
-    axs[0].set_xlabel('Number of Box', fontsize=15)
+    axs[0].set_xlabel('Count Points in Train Box', fontsize=15)
     axs[0].set_ylabel('Precision', fontsize=15)
     axs[0].legend(fontsize=15)
 
     # Add labels and a legend
-    axs[1].set_xlabel('Number of Box', fontsize=15)
+    axs[1].set_xlabel('Count Points in Train Box', fontsize=15)
     axs[1].set_ylabel('Recall', fontsize=15)
     axs[1].legend(fontsize=15)
 
     axs[1].grid(True)
     axs[0].grid(True)
     plt.savefig(
-        path + '/results_zoomed.svg',
+        path + '/100_results_zoomed.svg',
         format='svg')
 
 
@@ -301,8 +310,8 @@ def create_heatmap_best_box_generated_data_precision_kfold(function_string, dime
 
 
 def create_heatmap_best_box_generated_data_precision_kfold_last_box(function_string, dimension_max, package,
-                                                                    preprocessing_string, number_of_repeats, pts=
-                                                                    None):
+                                                                    preprocessing_string, number_of_repeats,
+                                                                    synthetic_or_real, pts=None):
     """
     Create a plot comparing precision results for different dataset sizes and dimensions using kfold cross validation.
 
@@ -328,6 +337,8 @@ def create_heatmap_best_box_generated_data_precision_kfold_last_box(function_str
     res_train[:] = np.nan
     res_test = np.empty((len(pts), len(atrs)))  # matrix with the results
     res_test[:] = np.nan
+    res_in_box = np.empty((len(pts), len(atrs)))
+    res_in_box[:] = np.nan
 
     k = 1
 
@@ -340,6 +351,7 @@ def create_heatmap_best_box_generated_data_precision_kfold_last_box(function_str
         for m in range(len(atrs)):
             prec_train = []
             prec_test = []
+            #n_in_box = []
             for i in range(number_of_repeats):
                 sys.stdout.write('\r' + 'experiment' + ' ' + str(k) + '/' + str(len(pts) * len(atrs)
                                                                                 * number_of_repeats * 5))
@@ -352,61 +364,86 @@ def create_heatmap_best_box_generated_data_precision_kfold_last_box(function_str
                     x_train, x_test = x.iloc[train_id], x.iloc[test_id]
                     y_train, y_test = y[train_id], y[test_id]
 
+                    x_train_temp, y_train_temp = x_train, y_train
+
                     if preprocessing_string is not None:
                         for item in preprocessing_string:
                             x_train, y_train = item(x_train, y_train)
 
-                    precisions, recalls, boxes = get_list_all_precisions_recalls_boxes(x_train, y_train, package,
-                                                                                       quality_function='precision')
+                    # , n_box
+                    precisions, recalls, boxes = get_list_all_precisions_recalls_boxes(x_train, y_train,
+                                                                                                 package,
+                                                                                                 quality_function=
+                                                                                                 'precision')
+
+                    # n_in_box.append(n_box)
 
                     if len(precisions) <= 0:
                         prec_train.append(0)
                     else:
-                        prec_train.append(precisions[len(precisions) - 1])
+                        ind_box = determine_box(function_string, pts[n], synthetic_or_real, boxes, x_train_temp,
+                                                y_train_temp)
+                        prec_train.append(precisions[ind_box])
 
                     if len(boxes) <= 0:
                         prec_test.append(0)
                     else:
-                        box = boxes[len(boxes) - 1]
-                        box = pd.DataFrame(box)
+                        ind_box = determine_box(function_string, pts[n], synthetic_or_real, boxes, x_train_temp,
+                                                y_train_temp)
+                        box = boxes[ind_box]
                         prec_test.append(calculate_precision_test_data_onebox(box, x_test.values, y_test))
                     k = k + 1
 
             res_train[n, m] = np.mean(prec_train)
             res_test[n, m] = np.mean(prec_test)
+            # res_in_box[n, m] = round(np.mean(n_in_box))
 
-    return flat_prec_rec(res_train, res_test)
+    return flat_prec_rec(res_train, res_test)  # , [item for sublist in res_in_box for item in sublist]
 
 
 def heatmap_all_results(number_of_repeats, package, preprocessing_string, synthetic_or_real, path):
     res_train = []
     res_test = []
     data_names_dims = []
+    # res_n_in = []
 
     data_info = get_data_information(synthetic_or_real)
 
     for row in data_info.iterrows():
-        temp_tr, temp_te = create_heatmap_best_box_generated_data_precision_kfold_last_box(row[1]['function'],
-                                                                                           row[1]['dim'], package,
-                                                                                           preprocessing_string,
-                                                                                           number_of_repeats,
-                                                                                           row[1]['pts'])
+        temp_tr, temp_te = create_heatmap_best_box_generated_data_precision_kfold_last_box(
+            row[1]['function'],
+            row[1]['dim'], package,
+            preprocessing_string,
+            number_of_repeats,
+            synthetic_or_real,
+            row[1]['pts'])
         while len(temp_tr) < 8:
             temp_tr.append(0)
             temp_te.append(0)
+            # temp_n_in.append(0)
 
         res_train.append(temp_tr)
         res_test.append(temp_te)
+        # res_n_in.append(temp_n_in)
+
         data_names_dims.append('d=' + str(row[1]['dim']) + ', ' + row[1]['function'].__name__)
-        pd.DataFrame(np.array(res_test).T).to_csv(path + 'res_test.csv')
-        pd.DataFrame(np.array(res_train).T).to_csv(path + 'res_train.csv')
+        pd.DataFrame(np.array(res_test).T).to_csv(path + '/res_test.csv')
+        pd.DataFrame(np.array(res_train).T).to_csv(path + '/res_train.csv')
+        # pd.DataFrame(np.array(res_n_in).T).to_csv(path + '/res_n_in.csv')
 
     res_test = np.array(res_test).T
     res_train = np.array(res_train).T
 
-    plt.figure(figsize=(8, 8.5))
+    colors1 = plt.cm.CMRmap_r(np.linspace(0., 0.7, 128))
+    colors2 = plt.cm.cubehelix(np.linspace(0.3, 1, 128))
 
-    plt.imshow(res_train - res_test, cmap='RdBu', vmin=-1, vmax=1)
+    # combine them and build a new colormap
+    colors = np.vstack((colors2, colors1))
+    my_gradient = mcolors.LinearSegmentedColormap.from_list('my_gradient', colors)
+
+    plt.figure(figsize=(8, 9.5))
+
+    plt.imshow(res_train - res_test, cmap=my_gradient, vmin=-1, vmax=1)
 
     for i in range(8):
         for j in range(7):
@@ -419,10 +456,7 @@ def heatmap_all_results(number_of_repeats, package, preprocessing_string, synthe
     plt.xticks(np.arange(7), data_names_dims, rotation=45, ha="right", fontsize=15)
     plt.xlabel('data set and dimensionality', weight='bold', fontsize=20)
     plt.ylabel('number of points', weight='bold', fontsize=20)
-    colorbar = plt.colorbar()
+    colorbar = plt.colorbar(fraction=0.046)
     colorbar.ax.yaxis.set_tick_params(labelsize=20)
     plt.tight_layout()
-    plt.savefig(
-        path + 'all_results.svg',
-        format='svg')
-
+    plt.savefig(path + '/all_results.svg', format='svg')

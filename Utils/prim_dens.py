@@ -54,7 +54,7 @@ class PRIMdens:
 
                     quality = self.calculate_quality_()
 
-                    if quality > (1 - self.alpha / 2) * max_quality and quality > (1 - self.alpha / 2) * temp_quality\
+                    if quality > (1 + self.alpha / 2) * max_quality and quality > (1 + self.alpha / 2) * temp_quality\
                             and self.n_in_box_ < n_in_best_box:
                         new_precision = self.calculate_precision_()
                         new_recall = self.calculate_recall_()
@@ -110,4 +110,3 @@ class PRIMdens:
     def calculate_accuracy_(self):
         return ((np.count_nonzero(self.y_[self.in_box_]) + np.sum(np.logical_and(self.y_ == 0, self.in_box_ == 0)))
                 / self.n_points)
-

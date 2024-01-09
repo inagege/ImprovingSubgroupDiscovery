@@ -246,8 +246,8 @@ def calculate_precision_recall_test_data_allboxes(lims, x_test, y_test):
 
     Parameters:
     - lims (List[pd.DataFrame]): List of box limits (dataframes).
-    - x_test (pd.DataFrame): Test input features.
-    - y_test (pd.Series): Test target variable.
+    - x_test (np.ndarray): Test input features.
+    - y_test (np.ndarray): Test target variable.
 
     Returns:
     - Tuple[List[float], List[float]]: Precision and recall lists for each box.
@@ -256,31 +256,30 @@ def calculate_precision_recall_test_data_allboxes(lims, x_test, y_test):
     precision_test = []
     recall_test = []
 
-    # iterate over limit entries which is list of dataframes
-    for j in range(len(lims)):
-        # Initialize TP, FP, TN, FN counters
-        tp = 0
-        fp = 0
-        tn = 0
-        fn = 0
-        box = lims[j]
-        box = pd.DataFrame(box)
-        x_test_temp = pd.DataFrame(x_test.values)
-        # Iterate over each row of temp_data
-        for row_index, row in x_test_temp.iterrows():
-            is_within_limits = True
-            # Check if entry lies within the specified limits
-            for a, (column, value) in enumerate(row.iteritems()):
-                is_within_limits = (box.iloc[0, a] <= value <= box.iloc[1, a]) & is_within_limits
+    # Convert x_test and y_test to numpy arrays if they are DataFrames or Series
+    if isinstance(x_test, pd.DataFrame):
+        x_test = x_test.values
+    if isinstance(y_test, pd.Series):
+        y_test = y_test.values
 
-            tp, fp, tn, fn = calculate_tp_fp_tn_fn(y_test, row_index, is_within_limits, tp, fp, tn, fn)
+    # iterate over each box in lims
+    for box in lims:
+        box = box  # Convert the DataFrame box to numpy array
+        lower_limits = box[0, :]
+        upper_limits = box[1, :]
 
-        precision = recall = 0  # Default values
+        # Check if each row in x_test is within the box limits
+        is_within_limits = np.all((x_test >= lower_limits) & (x_test <= upper_limits), axis=1)
 
-        if (tp + fp) > 0:
-            precision = tp / (tp + fp)
-        if (tp + fn) > 0:
-            recall = tp / (tp + fn)
+        # Calculate TP, FP, TN, FN
+        tp = np.sum((is_within_limits) & (y_test == 1))
+        fp = np.sum((is_within_limits) & (y_test == 0))
+        tn = np.sum((~is_within_limits) & (y_test == 0))
+        fn = np.sum((~is_within_limits) & (y_test == 1))
+
+        # Calculate precision and recall
+        precision = tp / (tp + fp) if (tp + fp) > 0 else 0
+        recall = tp / (tp + fn) if (tp + fn) > 0 else 0
 
         precision_test.append(precision)
         recall_test.append(recall)
@@ -294,37 +293,75 @@ def calculate_precision_test_data_onebox(lims, x_test, y_test):
 
     Parameters:
     - lims (pd.DataFrame): Box limits.
-    - x_test (pd.DataFrame): Test input features.
-    - y_test (pd.Series): Test target variable.
+    - x_test (np.ndarray): Test input features.
+    - y_test (np.ndarray): Test target variable.
 
     Returns:
     - float: Precision for the given box.
     """
-    is_within_limits = True
 
-    # Iterate over each row of temp_data
-    # Initialize TP, FP, TN, FN counters
-    tp = 0
-    fp = 0
-    tn = 0
-    fn = 0
+    if isinstance(x_test, pd.DataFrame):
+        x_test = x_test.values
+    if isinstance(y_test, pd.Series):
+        y_test = y_test.values
 
-    # Assuming x_test is a 2D NumPy array and y_test is a 1D NumPy array
-    for row_index in range(x_test.shape[0]):
-        for col_index in range(x_test.shape[1]):
-            element = x_test[row_index, col_index]
+    # Check if each element is within limits
+    lower_limits = lims[0, :]
+    upper_limits = lims[1, :]
+    is_within_limits = np.all((x_test >= lower_limits) & (x_test <= upper_limits), axis=1)
 
-            # Check if the element is within the limits for the current column
-            is_within_limits = (lims.iloc[0, col_index] <= element <= lims.iloc[
-                1, col_index]) and is_within_limits  # Calculate column index
+    # Calculate TP, FP, TN, FN
+    tp = np.sum(is_within_limits & (y_test == 1))
+    fp = np.sum(is_within_limits & (y_test == 0))
+    # tn and fn are not used for precision calculation
+    # tn = np.sum((~is_within_limits) & (y_test == 0))
+    # fn = np.sum((~is_within_limits) & (y_test == 1))
 
-        tp, fp, tn, fn = calculate_tp_fp_tn_fn(y_test, row_index, is_within_limits, tp, fp, tn, fn)
-        is_within_limits = True
+    # Calculate precision
+    precision = tp / (tp + fp) if (tp + fp) > 0 else 0
+    return precision
 
-    if (tp == 0):
-        return 0
-    else:
-        return tp / (tp + fp)
+
+def calculate_sum_tp_fp_test_data_allboxes(lims, x_test, y_test):
+    """
+    Calculate the sum of TP and FP for multiple boxes on test data.
+
+    Parameters:
+    - lims (List[pd.DataFrame]): List of box limits (dataframes).
+    - x_test (np.ndarray): Test input features.
+    - y_test (np.ndarray): Test target variable.
+
+    Returns:
+    - Tuple[int, int]: Sum of TP and FP for all boxes.
+    """
+
+    total_tp = []
+    total_fp = []
+
+    # Convert x_test and y_test to numpy arrays if they are DataFrames or Series
+    if isinstance(x_test, pd.DataFrame):
+        x_test = x_test.values
+    if isinstance(y_test, pd.Series):
+        y_test = y_test.values
+
+    # Iterate over each box in lims
+    for box in lims:
+        box = box  # Convert the DataFrame box to a numpy array
+        lower_limits = box[0, :]
+        upper_limits = box[1, :]
+
+        # Check if each row in x_test is within the box limits
+        is_within_limits = np.all((x_test >= lower_limits) & (x_test <= upper_limits), axis=1)
+
+        # Calculate TP and FP
+        tp = np.sum((is_within_limits) & (y_test == 1))
+        fp = np.sum((is_within_limits) & (y_test == 0))
+
+        # Aggregate TP and FP
+        total_tp.append(tp)
+        total_fp.append(fp)
+
+    return np.array(total_tp) + np.array(total_fp)
 
 
 def generate_data(function_string, dimension_max, numb_of_points, train_or_test, package, data=None):
@@ -395,6 +432,15 @@ def add_precision_recall_of_each_box_to_list_each_box(prec_in, rec_in, prec_out,
 
     return prec_out, rec_out
 
+def add_n_in_box_to_all_values(n_in_box, all_n_in_box):
+    if len(n_in_box) > len(all_n_in_box):
+        while len(n_in_box) > len(all_n_in_box):
+            all_n_in_box.append([])
+    for index, element in enumerate(n_in_box):
+        all_n_in_box[index].append(element)
+
+    return all_n_in_box
+
 
 def get_precision_and_recall_train_test(number_of_repeats, function_string, package, preprocessing_string,
                                         dimension_max, quality_function='precision'):
@@ -403,6 +449,8 @@ def get_precision_and_recall_train_test(number_of_repeats, function_string, pack
 
     prec_test = []
     rec_test = []
+
+    all_n_in_boxes = []
     data = None
 
     if 'calculate' not in function_string.__name__:
@@ -411,7 +459,7 @@ def get_precision_and_recall_train_test(number_of_repeats, function_string, pack
     for i in range(number_of_repeats):
         sys.stdout.write('\r' + 'experiment' + ' ' + str(i + 1) + '/' + str(number_of_repeats))
 
-        x, y = generate_data(function_string, dimension_max, 200, 'train', package, data)
+        x, y = generate_data(function_string, dimension_max, 100, 'train', package, data)
         folds = KFold(n_splits=5, shuffle=True)
 
         if 'calculate' in function_string.__name__:
@@ -421,12 +469,17 @@ def get_precision_and_recall_train_test(number_of_repeats, function_string, pack
             x_train, x_test = x.iloc[train_id], x.iloc[test_id]
             y_train, y_test = y[train_id], y[test_id]
 
+            y_train_temp, x_train_temp = y_train.copy(), x_train.copy(deep=True)
+
             if preprocessing_string is not None:
                 for item in preprocessing_string:
                     x_train, y_train = item(x_train, y_train)
 
             precisions, recalls, boxes = get_list_all_precisions_recalls_boxes(x_train, y_train, package,
-                                                                               quality_function)
+                                                                                     quality_function)
+
+            n_in_boxes = calculate_sum_tp_fp_test_data_allboxes(boxes, x_train_temp, y_train_temp)
+            all_n_in_boxes = add_n_in_box_to_all_values(n_in_boxes, all_n_in_boxes)
 
             prec_train, rec_train = add_precision_recall_of_each_box_to_list_each_box(precisions, recalls, prec_train,
                                                                                       rec_train)
@@ -436,18 +489,21 @@ def get_precision_and_recall_train_test(number_of_repeats, function_string, pack
             prec_test, rec_test = add_precision_recall_of_each_box_to_list_each_box(prec_test_temp, rec_test_temp,
                                                                                     prec_test, rec_test)
 
-    return prec_test, prec_train, rec_test, rec_train
+    return prec_test, prec_train, rec_test, rec_train, all_n_in_boxes
 
 
 def calculate_tp_fp_tn_fn(y_test, row_index, is_within_limits, tp, fp, tn, fn):
-    if is_within_limits & (y_test[row_index] == 1):
-        tp = tp + 1
-    if is_within_limits & (y_test[row_index] == 0):
-        fp = fp + 1
-    if (is_within_limits is False) & (y_test[row_index] == 0):
-        tn = tn + 1
-    if (is_within_limits is False) & (y_test[row_index] == 1):
-        fn = fn + 1
+    y_value = y_test[row_index]
+    if is_within_limits:
+        if y_value == 1:
+            tp += 1
+        else:
+            fp += 1
+    else:
+        if y_value == 0:
+            tn += 1
+        else:
+            fn += 1
 
     return tp, fp, tn, fn
 
@@ -518,3 +574,28 @@ def get_edited(synthetic_or_real):
                                  columns=columns)
 
     return data_info
+
+
+def get_n_in_box_dataset(function_string, number_of_points, synthetic_or_real):
+    if synthetic_or_real == 's':
+        path = '/Users/inagege/Documents/00_Uni/Bachelorarbeit/ImprovingSubgroupDiscovery/PRIM_Performance_Analyzing/Results_Baseline/Scenario_Discovery'
+        index = ['calculate_y_moon2010', 'calculate_y_morris', 'calculate_y_oakley_ohagan2004', 'calculate_y_sobol_levitan1999',
+                 'calculate_y_welch', 'calculate_y_loeppky', 'calculate_y_borehole']
+    else:
+        path = '/Users/inagege/Documents/00_Uni/Bachelorarbeit/ImprovingSubgroupDiscovery/PRIM_Performance_Analyzing/Results_Baseline/Subgroup_Discovery'
+        index = ['Rozenberg', 'Bryant', 'Higgs', 'Susy', 'Occupancy', 'Htru', 'Shuttle']
+
+    all_n_points = pd.read_csv(path + '/res_n_in.csv', header=0, index_col=0).T
+    all_n_points = pd.DataFrame(all_n_points.values, index=index, columns=[50, 100, 200, 400, 800, 1600, 3200, 6400])
+
+    return all_n_points.loc[function_string.__name__, number_of_points]
+
+
+def determine_box(function_string, number_of_points, synthetic_or_real, lims, x_train, y_train):
+    list_n_in_box_train = calculate_sum_tp_fp_test_data_allboxes(lims, x_train, y_train)
+    points_in_basleine = get_n_in_box_dataset(function_string, number_of_points, synthetic_or_real)
+    return min(range(len(list_n_in_box_train)), key=lambda x: abs(list_n_in_box_train[x] - points_in_basleine))
+
+
+
+
