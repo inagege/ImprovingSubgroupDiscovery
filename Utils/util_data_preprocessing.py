@@ -72,7 +72,7 @@ def outlier_detection_z_score(x, y):
     z_scores_zeros = pd.DataFrame(zscore(x_zeros_temp.values))
     z_scores_zeros.fillna(0, inplace=True)
     add_value = 0.0
-    threshold = 2.5
+    threshold = 3
     y_temp = []
 
     while len(y_temp) < len(x) / 2:

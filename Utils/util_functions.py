@@ -593,8 +593,8 @@ def get_n_in_box_dataset(function_string, number_of_points, synthetic_or_real):
 
 def determine_box(function_string, number_of_points, synthetic_or_real, lims, x_train, y_train):
     list_n_in_box_train = calculate_sum_tp_fp_test_data_allboxes(lims, x_train, y_train)
-    points_in_basleine = get_n_in_box_dataset(function_string, number_of_points, synthetic_or_real)
-    return min(range(len(list_n_in_box_train)), key=lambda x: abs(list_n_in_box_train[x] - points_in_basleine))
+    points_in_baseline = get_n_in_box_dataset(function_string, number_of_points, synthetic_or_real)
+    return min(range(len(list_n_in_box_train)), key=lambda x: abs(list_n_in_box_train[x] - points_in_baseline))
 
 
 
